@@ -12,6 +12,7 @@ const pledgeRoutes = require('./routes/pledgeRoutes');
 const programRoutes = require('./routes/programRoutes');
 const practiceRoutes = require('./routes/practiceRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const surveyRoutes = require('./routes/surveyRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -39,6 +40,7 @@ app.use('/api/pledges', pledgeRoutes);
 app.use('/api/programs', programRoutes);
 app.use('/api/practices', practiceRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/surveys', surveyRoutes);
 
 // Health check
 app.get('/api/health', async (req, res) => {

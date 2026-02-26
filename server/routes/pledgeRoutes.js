@@ -4,16 +4,19 @@ const {
     createPledge,
     getMyPledges,
     getAllPledges,
-    getPledgeById
+    getPledgeById,
+    downloadCertificate
 } = require('../controllers/pledgeController');
 const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
 
 // Public (authenticated)
 router.post('/', authMiddleware, createPledge);
 router.get('/my', authMiddleware, getMyPledges);
-router.get('/:id', authMiddleware, getPledgeById);
 
-// Admin only
+// Admin only — MUST be before /:id to avoid Express matching 'all' as an id
 router.get('/all', authMiddleware, adminMiddleware, getAllPledges);
+
+router.get('/:id', authMiddleware, getPledgeById);
+router.get('/:id/certificate', authMiddleware, downloadCertificate);
 
 module.exports = router;

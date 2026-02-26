@@ -72,6 +72,7 @@ const createTables = async () => {
           id SERIAL PRIMARY KEY,
           user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
           program_id INTEGER REFERENCES programs(id) ON DELETE CASCADE,
+          problem_statement TEXT,
           north_star TEXT,
           success_metric TEXT,
           timeline VARCHAR(255),
@@ -80,6 +81,11 @@ const createTables = async () => {
           measure_success TEXT,
           submitted_at TIMESTAMP DEFAULT NOW()
       );
+    `);
+
+    // Safe migration: add problem_statement if not exists
+    await client.query(`
+      ALTER TABLE pledges ADD COLUMN IF NOT EXISTS problem_statement TEXT;
     `);
 
     // 6. pledge_practices
@@ -127,6 +133,49 @@ const createTables = async () => {
           action_needed_next TEXT,
           created_at TIMESTAMP DEFAULT NOW()
       );
+    `);
+
+    // 10. survey_schedules (admin configures per program)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS survey_schedules (
+          id SERIAL PRIMARY KEY,
+          program_id INTEGER REFERENCES programs(id) ON DELETE CASCADE,
+          label VARCHAR(255) NOT NULL,
+          interval_days INTEGER NOT NULL DEFAULT 30,
+          start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+          next_due_date DATE,
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // 11. survey_instances (one per pledge per survey wave)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS survey_instances (
+          id SERIAL PRIMARY KEY,
+          schedule_id INTEGER REFERENCES survey_schedules(id) ON DELETE CASCADE,
+          pledge_id INTEGER REFERENCES pledges(id) ON DELETE CASCADE,
+          due_date DATE NOT NULL,
+          completed_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // 12. survey_instance_responses (per practice per survey instance)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS survey_instance_responses (
+          id SERIAL PRIMARY KEY,
+          instance_id INTEGER REFERENCES survey_instances(id) ON DELETE CASCADE,
+          practice_id INTEGER REFERENCES practices(id) ON DELETE CASCADE,
+          action_taken_level VARCHAR(10) CHECK (action_taken_level IN ('H', 'M', 'L')),
+          action_needed_next TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // Safe migrations for survey_schedules
+    await client.query(`
+      ALTER TABLE survey_schedules ADD COLUMN IF NOT EXISTS next_due_date DATE;
     `);
 
     await client.query('COMMIT');

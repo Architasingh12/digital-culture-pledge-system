@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
+import { Moon, Sun, Bell, Menu, LogOut, ChevronDown } from 'lucide-react';
 
 const Navbar = ({ onMenuToggle }) => {
     const { user, logout } = useAuth();
+    const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
     const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -13,65 +16,73 @@ const Navbar = ({ onMenuToggle }) => {
     };
 
     return (
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center px-4 lg:px-6 gap-4 sticky top-0 z-10 shadow-sm">
+        <header className="h-16 flex items-center px-4 lg:px-6 gap-4 sticky top-0 z-30 transition-colors shadow-sm" style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border-color)' }}>
             {/* Hamburger */}
             <button
                 onClick={onMenuToggle}
-                className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
+                className="lg:hidden p-2 rounded-lg transition-colors hover:bg-slate-500/10"
+                style={{ color: 'var(--text-secondary)' }}
                 aria-label="Toggle menu"
             >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
+                <Menu className="w-5 h-5" />
             </button>
 
             {/* Title */}
             <div className="flex-1">
-                <h1 className="text-slate-800 font-bold text-base lg:text-lg">
+                <h1 className="font-bold text-base lg:text-lg" style={{ color: 'var(--text-primary)' }}>
                     Digital Culture Pledge System
                 </h1>
-                <p className="text-slate-400 text-xs hidden sm:block">Building a culture of excellence</p>
+                <p className="text-xs hidden sm:block" style={{ color: 'var(--text-tertiary)' }}>Building a culture of excellence</p>
             </div>
 
             {/* Right section */}
-            <div className="flex items-center gap-3">
-                {/* Notification dot */}
-                <button className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
+            <div className="flex items-center gap-1 sm:gap-3">
+                {/* Theme Toggle */}
+                <button
+                    onClick={toggleTheme}
+                    className="p-2 rounded-lg transition-colors hover:bg-slate-500/10"
+                    style={{ color: 'var(--text-secondary)' }}
+                    title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                >
+                    {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </button>
 
-                {/* User avatar dropdown */}
+                {/* Notification */}
+                <button className="relative p-2 hidden sm:block rounded-lg transition-colors hover:bg-slate-500/10" style={{ color: 'var(--text-secondary)' }}>
+                    <Bell className="w-5 h-5" />
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 border-2" style={{ borderColor: 'var(--bg-surface)' }}></span>
+                </button>
+
+                {/* User Dropdown */}
                 <div className="relative">
                     <button
                         onClick={() => setDropdownOpen(!dropdownOpen)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100 transition-colors"
+                        className="flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-colors hover:bg-slate-500/10 group"
                     >
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-sm ring-2 ring-transparent group-hover:ring-blue-500/50 transition-all">
                             {user?.name?.charAt(0)?.toUpperCase() || 'U'}
                         </div>
                         <div className="hidden sm:block text-left">
-                            <p className="text-sm font-semibold text-slate-800 leading-tight">{user?.name}</p>
-                            <p className="text-xs text-slate-500">{user?.department || 'Employee'}</p>
+                            <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>{user?.name}</p>
+                            <p className="text-xs truncate max-w-[120px]" style={{ color: 'var(--text-tertiary)' }}>{user?.email}</p>
                         </div>
-                        <svg className="w-4 h-4 text-slate-400 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
+                        <ChevronDown className="w-4 h-4 hidden sm:block" style={{ color: 'var(--text-tertiary)' }} />
                     </button>
 
                     {dropdownOpen && (
-                        <div className="absolute right-0 top-12 w-48 bg-white border border-slate-200 rounded-xl shadow-xl py-1 z-50">
-                            <div className="px-4 py-3 border-b border-slate-100">
-                                <p className="text-sm font-semibold text-slate-800">{user?.name}</p>
-                                <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                        <div className="absolute right-0 top-12 w-56 rounded-xl shadow-xl py-1 z-50 border backdrop-blur-md" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
+                            <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border-color)' }}>
+                                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{user?.name}</p>
+                                <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{user?.email}</p>
                             </div>
                             <button
                                 onClick={handleLogout}
-                                className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                                className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-500/10 transition-colors flex items-center gap-2 font-medium"
                             >
-                                🚪 Logout
+                                <LogOut className="w-4 h-4" /> Logout
+                                
                             </button>
+                            
                         </div>
                     )}
                 </div>

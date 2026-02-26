@@ -16,7 +16,7 @@ export const AuthProvider = ({ children }) => {
                 if (res.data.success && res.data.user) {
                     setUser(res.data.user);
                 }
-            } catch (error) {
+            } catch {
                 // Ignore 401s here, just means unauthenticated as expected
                 setUser(null);
             } finally {
@@ -37,7 +37,7 @@ export const AuthProvider = ({ children }) => {
             setUser(null);
             // Let axios redirect if needed or handle it here
             window.location.href = '/login';
-        } catch (err) {
+        } catch {
             toast.error('Error logging out');
         }
     };
@@ -49,6 +49,7 @@ export const AuthProvider = ({ children }) => {
     );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
     const ctx = useContext(AuthContext);
     if (!ctx) throw new Error('useAuth must be used within AuthProvider');

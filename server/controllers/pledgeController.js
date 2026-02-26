@@ -1,9 +1,11 @@
 const pool = require('../config/db');
+const { generateCertificatePDF } = require('../utils/pdfGenerator');
 
 // POST /api/pledges
 const createPledge = async (req, res) => {
     const {
         program_id,
+        problem_statement,
         north_star,
         success_metric,
         timeline,
@@ -25,9 +27,9 @@ const createPledge = async (req, res) => {
         // 1. Insert Pledge
         const pledgeResult = await client.query(
             `INSERT INTO pledges 
-        (user_id, program_id, north_star, success_metric, timeline, personal_habit, habit_frequency, measure_success)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-            [userId, program_id, north_star, success_metric, timeline, personal_habit, habit_frequency, measure_success]
+        (user_id, program_id, problem_statement, north_star, success_metric, timeline, personal_habit, habit_frequency, measure_success)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+            [userId, program_id, problem_statement, north_star, success_metric, timeline, personal_habit, habit_frequency, measure_success]
         );
 
         const pledge = pledgeResult.rows[0];
@@ -138,9 +140,48 @@ const getPledgeById = async (req, res) => {
     }
 };
 
+// GET /api/pledges/:id/certificate
+const downloadCertificate = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT p.*, prog.title as program_title, u.name as user_name, u.email as user_email, u.designation as user_designation, u.photo_url as user_photo,
+        (SELECT json_agg(json_build_object('practice_id', pp.practice_id, 'selected_action', pp.selected_action, 'title', pr.title, 'type', pr.type)) FROM pledge_practices pp JOIN practices pr ON pp.practice_id = pr.id WHERE pp.pledge_id = p.id) as practices,
+        (SELECT json_agg(row_to_json(b)) FROM behaviours b WHERE b.pledge_id = p.id) as behaviours
+       FROM pledges p
+       LEFT JOIN users u ON u.id = p.user_id
+       LEFT JOIN programs prog ON p.program_id = prog.id
+       WHERE p.id = $1`,
+            [req.params.id]
+        );
+
+        if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Pledge not found' });
+
+        const pledge = result.rows[0];
+
+        // Auth check (user can only see own pledge unless admin)
+        if (req.user.role !== 'admin' && pledge.user_id !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Access denied' });
+        }
+
+        const pdfBuffer = await generateCertificatePDF(pledge);
+
+        const formattedName = pledge.user_name ? pledge.user_name.replace(/\\s+/g, '-') : 'Participant';
+        res.set({
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': 'attachment; filename="pledge-certificate-' + formattedName + '.pdf"'
+        });
+
+        return res.send(pdfBuffer);
+    } catch (error) {
+        console.error('downloadCertificate error:', error);
+        return res.status(500).json({ success: false, message: 'Server error while generating PDF.' });
+    }
+};
+
 module.exports = {
     createPledge,
     getMyPledges,
     getAllPledges,
     getPledgeById,
+    downloadCertificate,
 };
