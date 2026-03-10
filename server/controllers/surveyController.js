@@ -86,12 +86,16 @@ const getMyInstances = async (req, res) => {
         const userId = req.user.id;
         const result = await pool.query(
             `SELECT si.*, ss.label as schedule_label, ss.interval_days,
-                    prog.title as program_title
+                    prog.title as program_title,
+                    array_to_string(array_agg(pr.title), ', ') as practice_names
              FROM survey_instances si
              JOIN survey_schedules ss ON ss.id = si.schedule_id
              JOIN pledges pl ON pl.id = si.pledge_id
              JOIN programs prog ON prog.id = pl.program_id
+             LEFT JOIN pledge_practices pp ON pp.pledge_id = pl.id
+             LEFT JOIN practices pr ON pr.id = pp.practice_id
              WHERE pl.user_id = $1
+             GROUP BY si.id, ss.label, ss.interval_days, prog.title
              ORDER BY si.due_date DESC`,
             [userId]
         );

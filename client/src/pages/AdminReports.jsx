@@ -33,8 +33,8 @@ const KpiCard = ({ icon, label, value, sub, theme = 'blue' }) => {
                     {icon}
                 </div>
                 <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest truncate leading-tight" style={{ color: 'var(--text-tertiary)' }}>{label}</p>
-                    <p className="text-2xl lg:text-3xl font-black mt-1 leading-none tracking-tight" style={{ color: 'var(--text-primary)' }}>{value}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest truncate leading-tight" style={{ color: 'var(--text-tertiary)' }}>{label}</p>
+                    <p className="text-2xl lg:text-3xl font-semibold mt-1 leading-snug tracking-tight whitespace-normal break-normal" style={{ color: 'var(--text-primary)' }}>{value}</p>
                 </div>
             </div>
             {sub && <p className="text-[11px] font-medium mt-auto pt-2 border-t" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-color)' }}>{sub}</p>}
@@ -79,11 +79,13 @@ const AdminReports = () => {
     useEffect(() => { load(); }, [load]);
 
     // ── Derived ──────────────────────────────────────────────────────────────
-    const pieData = data ? [
-        { name: 'H', value: data.levelDistribution.H },
-        { name: 'M', value: data.levelDistribution.M },
-        { name: 'L', value: data.levelDistribution.L },
-    ].filter(d => d.value > 0) : [];
+    const pieData = data && data.levelDistribution ? [
+        { name: 'H', value: parseInt(data.levelDistribution.H || 0, 10) },
+        { name: 'M', value: parseInt(data.levelDistribution.M || 0, 10) },
+        { name: 'L', value: parseInt(data.levelDistribution.L || 0, 10) },
+    ] : [];
+
+    const totalSurveyResponses = pieData.reduce((acc, curr) => acc + curr.value, 0);
 
     const sortedParticipants = data ? [...data.participants]
         .filter(p => (p.name || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -243,19 +245,21 @@ const AdminReports = () => {
                     {data.practiceCounts.length === 0 ? (
                         <p className="text-sm text-center py-12" style={{ color: 'var(--text-secondary)' }}>No practices selected yet.</p>
                     ) : (
-                        <ResponsiveContainer width="100%" height={260}>
-                            <BarChart data={data.practiceCounts} margin={{ top: 0, right: 0, left: -20, bottom: 50 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.2} vertical={false} />
-                                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} angle={-35} textAnchor="end" interval={0} axisLine={false} tickLine={false} />
-                                <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                        <div className="w-full flex justify-center items-center min-h-[340px]">
+                            <ResponsiveContainer width="100%" height={340}>
+                                <BarChart data={data.practiceCounts} margin={{ top: 20, right: 20, left: -20, bottom: 90 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.2} vertical={false} />
+                                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} angle={-45} textAnchor="end" interval={0} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} allowDecimals={false} />
                                 <Tooltip
                                     formatter={(v, _n, props) => [v + ' selections', props.payload?.fullName || '']}
                                     contentStyle={{ borderRadius: '12px', fontSize: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
                                     cursor={{ fill: 'var(--text-tertiary)', opacity: 0.1 }}
                                 />
-                                <Bar dataKey="count" fill={BAR_COLOR} radius={[6, 6, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                                    <Bar dataKey="count" fill={BAR_COLOR} radius={[6, 6, 0, 0]} maxBarSize={60} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
                     )}
                 </motion.div>
 
@@ -265,27 +269,29 @@ const AdminReports = () => {
                         <span className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">🥧</span>
                         Survey Level Distribution (H / M / L)
                     </h2>
-                    {pieData.length === 0 ? (
+                    {totalSurveyResponses === 0 ? (
                         <p className="text-sm text-center py-12" style={{ color: 'var(--text-secondary)' }}>No survey responses yet.</p>
                     ) : (
-                        <ResponsiveContainer width="100%" height={260}>
-                            <PieChart>
-                                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                                    outerRadius={100} labelLine={false} label={<PieLabel />} stroke="var(--bg-surface)" strokeWidth={2}>
-                                    {pieData.map(entry => (
-                                        <Cell key={entry.name} fill={PIE_COLORS[entry.name]} />
-                                    ))}
-                                </Pie>
+                        <div className="w-full flex justify-center items-center min-h-[340px]">
+                            <ResponsiveContainer width="100%" height={340}>
+                                <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                                    <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                                        outerRadius={110} labelLine={false} label={<PieLabel />} stroke="var(--bg-surface)" strokeWidth={2}>
+                                        {pieData.map(entry => (
+                                            <Cell key={entry.name} fill={PIE_COLORS[entry.name]} />
+                                        ))}
+                                    </Pie>
                                 <Legend
                                     formatter={(name) => <span style={{ color: 'var(--text-primary)', fontSize: '12px', fontWeight: 600 }}>{name === 'H' ? 'High (H)' : name === 'M' ? 'Medium (M)' : 'Low (L)'}</span>}
                                     iconType="circle"
                                 />
                                 <Tooltip
                                     formatter={(v, n) => [v + ' responses', n === 'H' ? 'High' : n === 'M' ? 'Medium' : 'Low']}
-                                    contentStyle={{ borderRadius: '12px', fontSize: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-                                />
-                            </PieChart>
-                        </ResponsiveContainer>
+                                        contentStyle={{ borderRadius: '12px', fontSize: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
                     )}
                 </motion.div>
             </motion.div>

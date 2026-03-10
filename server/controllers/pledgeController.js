@@ -13,7 +13,13 @@ const createPledge = async (req, res) => {
         habit_frequency,
         measure_success,
         pledge_practices, // Array of { practice_id, selected_action }
-        behaviours // Array of { behaviour_text, type, why_it_matters, ... }
+        behaviours, // Array of { behaviour_text, type, why_it_matters, ... }
+        // Section E – Review & Sign-off
+        review_dates,
+        signature_name,
+        signoff_designation,
+        digital_signature,
+        submission_date,
     } = req.body;
 
     const userId = req.user.id;
@@ -27,9 +33,11 @@ const createPledge = async (req, res) => {
         // 1. Insert Pledge
         const pledgeResult = await client.query(
             `INSERT INTO pledges 
-        (user_id, program_id, problem_statement, north_star, success_metric, timeline, personal_habit, habit_frequency, measure_success)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-            [userId, program_id, problem_statement, north_star, success_metric, timeline, personal_habit, habit_frequency, measure_success]
+        (user_id, program_id, problem_statement, north_star, success_metric, timeline, personal_habit, habit_frequency, measure_success,
+         review_dates, signature_name, signoff_designation, digital_signature, submission_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+            [userId, program_id, problem_statement, north_star, success_metric, timeline, personal_habit, habit_frequency, measure_success,
+             review_dates || null, signature_name || null, signoff_designation || null, digital_signature || null, submission_date || null]
         );
 
         const pledge = pledgeResult.rows[0];
@@ -66,6 +74,7 @@ const createPledge = async (req, res) => {
         client.release();
     }
 };
+
 
 // GET /api/pledges/my
 const getMyPledges = async (req, res) => {

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
-import { Moon, Sun, Bell, Menu, LogOut, ChevronDown } from 'lucide-react';
+import { Moon, Sun, Menu, LogOut, ChevronDown } from 'lucide-react';
 
 const Navbar = ({ onMenuToggle }) => {
     const { user, logout } = useAuth();
@@ -46,14 +46,6 @@ const Navbar = ({ onMenuToggle }) => {
                 >
                     {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </button>
-
-                {/* Notification */}
-                <button className="relative p-2 hidden sm:block rounded-lg transition-colors hover:bg-slate-500/10" style={{ color: 'var(--text-secondary)' }}>
-                    <Bell className="w-5 h-5" />
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 border-2" style={{ borderColor: 'var(--bg-surface)' }}></span>
-                </button>
-
-                
 
                 {/* User Dropdown */}
                 <div className="relative">

@@ -5,7 +5,7 @@ import axiosInstance from '../api/axiosInstance';
 import { useAuth } from '../context/AuthContext';
 // eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
-import { Target, Star, Calendar, Clock, BookOpen, Repeat, TrendingUp, CheckCircle, Edit3, Type, ArrowRight, Save, Trash2, Plus } from 'lucide-react';
+import { Target, Star, Calendar, Clock, BookOpen, Repeat, TrendingUp, CheckCircle, Edit3, Type, ArrowRight, Save, Trash2, Plus, PenLine, CalendarCheck, User, Briefcase } from 'lucide-react';
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -28,19 +28,40 @@ const PledgePage = () => {
     const [practices, setPractices] = useState([]);
     const [submitting, setSubmitting] = useState(false);
 
-    // Section A
-    const [sectionA, setSectionA] = useState({ problem_statement: '', north_star: '', success_metric: '', timeline: '' });
+    // Section A – Digital North Star
+    const [sectionA, setSectionA] = useState({
+        problem_statement: '',
+        success_metric: '',   // "Key Success Metric (baseline to target)"
+        timeline_quarter: '', // Quarter e.g. Q3
+        timeline_year: '',    // Year e.g. 2026
+    });
 
-    // Section B/C/D — track checked practices and their selected action
+    // Section B – Digital Culture Practices
     const [practiceSelections, setPracticeSelections] = useState({});
 
-    // Section E
-    const [sectionE, setSectionE] = useState({ personal_habit: '', habit_frequency: 'weekly', measure_success: '' });
+    // Section C – My Own Digital Habit
+    const [sectionC, setSectionC] = useState({
+        personal_habit: '',
+        habit_frequency: 'weekly',
+        measure_success: '',
+    });
 
-    // Section F — behaviours (max 5)
+    // Section D – Key Digital Behaviours (max 5 rows)
     const [behaviours, setBehaviours] = useState([
         { behaviour_text: '', type: 'start', why_it_matters: '', first_action_date: '' }
     ]);
+
+    // Section E – Review and Sign-off
+    const today = new Date().toISOString().slice(0, 10);
+    const [sectionE, setSectionE] = useState({
+        review_date_1: '',
+        review_date_2: '',
+        review_date_3: '',
+        signature_name: user?.name || '',
+        signoff_designation: user?.designation || '',
+        digital_signature: '',
+        submission_date: today,
+    });
 
     // Load programs
     useEffect(() => {
@@ -53,6 +74,17 @@ const PledgePage = () => {
             .catch(() => toast.error('Failed to load programs'))
             .finally(() => setLoadingInitial(false));
     }, []);
+
+    // Populate name from user when loaded
+    useEffect(() => {
+        if (user) {
+            setSectionE(prev => ({
+                ...prev,
+                signature_name: prev.signature_name || user.name || '',
+                signoff_designation: prev.signoff_designation || user.designation || '',
+            }));
+        }
+    }, [user]);
 
     // Load practices when program changes
     useEffect(() => {
@@ -95,23 +127,28 @@ const PledgePage = () => {
         setBehaviours(prev => prev.map((b, i) => i === idx ? { ...b, [field]: value } : b));
     };
 
-    const selectedMonthlyCount = monthlyPractices.filter(p => p.id in practiceSelections).length;
-    const selectedQuarterlyCount = quarterlyPractices.filter(p => p.id in practiceSelections).length;
-
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        // Section A validation
         if (!sectionA.problem_statement.trim()) return toast.error('Please fill in your Problem Statement (Section A)');
-        if (!sectionA.success_metric.trim()) return toast.error('Please fill in your Success Metric (Section A)');
-        if (!sectionA.timeline.trim()) return toast.error('Please fill in your Timeline (Section A)');
-        if (monthlyPractices.length > 0 && selectedMonthlyCount < 2 && monthlyPractices.length >= 2)
-            return toast.error('Please choose at least 2 Monthly Practices (Section C)');
-        if (quarterlyPractices.length > 0 && selectedQuarterlyCount < 2 && quarterlyPractices.length >= 2)
-            return toast.error('Please choose at least 2 Quarterly Practices (Section D)');
-        if (!sectionE.personal_habit.trim()) return toast.error('Please fill in your Personal Habit (Section E)');
+        if (!sectionA.success_metric.trim()) return toast.error('Please fill in your Key Success Metric (Section A)');
+        if (!sectionA.timeline_quarter.trim() || !sectionA.timeline_year.trim()) return toast.error('Please fill in your Timeline Quarter and Year (Section A)');
 
+        // Section C validation
+        if (!sectionC.personal_habit.trim()) return toast.error('Please fill in your Personal Habit (Section C)');
+
+        // Section D validation
         const filledBehaviours = behaviours.filter(b => b.behaviour_text.trim());
-        if (filledBehaviours.length === 0) return toast.error('Please add at least one Behaviour (Section F)');
+        if (filledBehaviours.length === 0) return toast.error('Please add at least one Behaviour (Section D)');
+
+        // Section E validation
+        if (!sectionE.signature_name.trim()) return toast.error('Please enter your Name (Section E)');
+        if (!sectionE.digital_signature.trim()) return toast.error('Please enter your Digital Signature (Section E)');
+
+        const timeline = `${sectionA.timeline_quarter} ${sectionA.timeline_year}`.trim();
+        const reviewDates = [sectionE.review_date_1, sectionE.review_date_2, sectionE.review_date_3]
+            .filter(Boolean).join(',');
 
         const pledge_practices = Object.entries(practiceSelections)
             .filter(([, action]) => action && action.trim())
@@ -129,14 +166,20 @@ const PledgePage = () => {
             const payload = {
                 program_id: selectedProgramId,
                 problem_statement: sectionA.problem_statement,
-                north_star: sectionA.north_star,
+                north_star: sectionA.success_metric, // reusing north_star field for success metric
                 success_metric: sectionA.success_metric,
-                timeline: sectionA.timeline,
-                personal_habit: sectionE.personal_habit,
-                habit_frequency: sectionE.habit_frequency,
-                measure_success: sectionE.measure_success,
+                timeline,
+                personal_habit: sectionC.personal_habit,
+                habit_frequency: sectionC.habit_frequency,
+                measure_success: sectionC.measure_success,
                 pledge_practices,
                 behaviours: filledBehaviours,
+                // Section E
+                review_dates: reviewDates || null,
+                signature_name: sectionE.signature_name,
+                signoff_designation: sectionE.signoff_designation,
+                digital_signature: sectionE.digital_signature,
+                submission_date: sectionE.submission_date || today,
             };
 
             const resPledge = await axiosInstance.post('/pledges', payload);
@@ -149,7 +192,7 @@ const PledgePage = () => {
                 const link = document.createElement('a');
                 link.href = url;
 
-                let filename = `pledge-certificate-${user?.name?.replace(/\\s+/g, '-') || 'participant'}.pdf`;
+                let filename = `pledge-certificate-${user?.name?.replace(/\s+/g, '-') || 'participant'}.pdf`;
                 const contentDisposition = pdfRes.headers['content-disposition'];
                 if (contentDisposition && contentDisposition.includes('filename=')) {
                     filename = contentDisposition.split('filename=')[1].replace(/"/g, '');
@@ -230,10 +273,11 @@ const PledgePage = () => {
 
             <form onSubmit={handleSubmit} className="space-y-8">
 
-                {/* ── SECTION A: Digital North Star ───────────────────────────── */}
+                {/* ── SECTION A: Digital North Star ─────────────────────────── */}
                 <motion.div variants={itemVariants} className="rounded-3xl border shadow-sm p-6 lg:p-8" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
                     {sectionHeader('A. Digital North Star', <Star className="w-6 h-6" />, 'blue')}
                     <div className="space-y-6">
+                        {/* Problem Statement */}
                         <div>
                             <label className={labelCls} style={{ color: 'var(--text-secondary)' }}><Type className="w-3.5 h-3.5" /> Problem Statement *</label>
                             <textarea
@@ -246,131 +290,163 @@ const PledgePage = () => {
                                 style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
                             />
                         </div>
+
+                        {/* Key Success Metric */}
                         <div>
-                            <label className={labelCls} style={{ color: 'var(--text-secondary)' }}><Target className="w-3.5 h-3.5" /> My North Star / Vision</label>
-                            <textarea
-                                rows={2}
-                                placeholder="What ultimate goal do you want to achieve?"
-                                value={sectionA.north_star}
-                                onChange={e => setSectionA(p => ({ ...p, north_star: e.target.value }))}
+                            <label className={labelCls} style={{ color: 'var(--text-secondary)' }}><TrendingUp className="w-3.5 h-3.5" /> Key Success Metric (Baseline → Target) *</label>
+                            <input
+                                required
+                                type="text"
+                                placeholder="e.g. Digital adoption score from 45% to 80%"
+                                value={sectionA.success_metric}
+                                onChange={e => setSectionA(p => ({ ...p, success_metric: e.target.value }))}
                                 className={inputCls}
                                 style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
                             />
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className={labelCls} style={{ color: 'var(--text-secondary)' }}><TrendingUp className="w-3.5 h-3.5" /> Success Metric *</label>
-                                <input
-                                    required
-                                    type="text"
-                                    placeholder="How will you measure success?"
-                                    value={sectionA.success_metric}
-                                    onChange={e => setSectionA(p => ({ ...p, success_metric: e.target.value }))}
-                                    className={inputCls}
-                                    style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
-                                />
-                            </div>
-                            <div>
-                                <label className={labelCls} style={{ color: 'var(--text-secondary)' }}><Clock className="w-3.5 h-3.5" /> Timeline *</label>
-                                <input
-                                    required
-                                    type="text"
-                                    placeholder="e.g. Q3 2026 · 3 months"
-                                    value={sectionA.timeline}
-                                    onChange={e => setSectionA(p => ({ ...p, timeline: e.target.value }))}
-                                    className={inputCls}
-                                    style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
-                                />
+
+                        {/* Timeline to Impact */}
+                        <div>
+                            <label className={labelCls} style={{ color: 'var(--text-secondary)' }}><Clock className="w-3.5 h-3.5" /> Timeline to Impact *</label>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <select
+                                        value={sectionA.timeline_quarter}
+                                        onChange={e => setSectionA(p => ({ ...p, timeline_quarter: e.target.value }))}
+                                        className={`${inputCls} bg-white dark:bg-[#0f172a]`}
+                                        style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                                    >
+                                        <option value="">Quarter…</option>
+                                        <option value="Q1">Q1</option>
+                                        <option value="Q2">Q2</option>
+                                        <option value="Q3">Q3</option>
+                                        <option value="Q4">Q4</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <input
+                                        type="number"
+                                        min="2024"
+                                        max="2030"
+                                        placeholder="Year e.g. 2026"
+                                        value={sectionA.timeline_year}
+                                        onChange={e => setSectionA(p => ({ ...p, timeline_year: e.target.value }))}
+                                        className={inputCls}
+                                        style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
                 </motion.div>
 
-                {/* ── SECTION B: Weekly Practices ─────────────────────────────── */}
-                {weeklyPractices.length > 0 && (
-                    <motion.div variants={itemVariants} className="rounded-3xl border shadow-sm p-6 lg:p-8" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
-                        {sectionHeader('B. Weekly Practices', <Calendar className="w-6 h-6" />, 'emerald')}
-                        <p className="text-sm mb-6 font-medium" style={{ color: 'var(--text-tertiary)' }}>Check the practices you commit to, then select one action for each.</p>
-                        <div className="space-y-4">
-                            {weeklyPractices.map(pr => (
-                                <PracticeCard
-                                    key={pr.id}
-                                    practice={pr}
-                                    checked={pr.id in practiceSelections}
-                                    selectedAction={practiceSelections[pr.id] || ''}
-                                    onToggle={() => togglePractice(pr.id)}
-                                    onSelectAction={action => selectAction(pr.id, action)}
-                                    colorTheme="emerald"
-                                />
-                            ))}
-                        </div>
-                    </motion.div>
-                )}
-
-                {/* ── SECTION C: Monthly Practices ────────────────────────────── */}
-                {monthlyPractices.length > 0 && (
-                    <motion.div variants={itemVariants} className="rounded-3xl border shadow-sm p-6 lg:p-8" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
-                        {sectionHeader('C. Monthly Practices', <Calendar className="w-6 h-6" />, 'indigo')}
-                        <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
-                            <p className="text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>Choose at least 2, then select an action for each.</p>
-                            <span className={`text-xs font-bold px-3 py-1 rounded-full border ${selectedMonthlyCount >= 2 ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800' : 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'}`}>
-                                {selectedMonthlyCount} / {monthlyPractices.length} selected
-                            </span>
-                        </div>
-                        <div className="space-y-4">
-                            {monthlyPractices.map(pr => (
-                                <PracticeCard
-                                    key={pr.id}
-                                    practice={pr}
-                                    checked={pr.id in practiceSelections}
-                                    selectedAction={practiceSelections[pr.id] || ''}
-                                    onToggle={() => togglePractice(pr.id)}
-                                    onSelectAction={action => selectAction(pr.id, action)}
-                                    colorTheme="indigo"
-                                />
-                            ))}
-                        </div>
-                    </motion.div>
-                )}
-
-                {/* ── SECTION D: Quarterly Practices ──────────────────────────── */}
-                {quarterlyPractices.length > 0 && (
-                    <motion.div variants={itemVariants} className="rounded-3xl border shadow-sm p-6 lg:p-8" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
-                        {sectionHeader('D. Quarterly Practices', <Calendar className="w-6 h-6" />, 'orange')}
-                        <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
-                            <p className="text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>Choose at least 2 strategic quarterly reviews.</p>
-                            <span className={`text-xs font-bold px-3 py-1 rounded-full border ${selectedQuarterlyCount >= 2 ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800' : 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'}`}>
-                                {selectedQuarterlyCount} / {quarterlyPractices.length} selected
-                            </span>
-                        </div>
-                        <div className="space-y-4">
-                            {quarterlyPractices.map(pr => (
-                                <PracticeCard
-                                    key={pr.id}
-                                    practice={pr}
-                                    checked={pr.id in practiceSelections}
-                                    selectedAction={practiceSelections[pr.id] || ''}
-                                    onToggle={() => togglePractice(pr.id)}
-                                    onSelectAction={action => selectAction(pr.id, action)}
-                                    colorTheme="orange"
-                                />
-                            ))}
-                        </div>
-                    </motion.div>
-                )}
-
-                {/* ── SECTION E: Personal Habit ────────────────────────────────── */}
+                {/* ── SECTION B: Digital Culture Practices ─────────────────── */}
                 <motion.div variants={itemVariants} className="rounded-3xl border shadow-sm p-6 lg:p-8" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
-                    {sectionHeader('E. Personal Habit', <Target className="w-6 h-6" />, 'violet')}
+                    {sectionHeader('B. Digital Culture Practices', <Calendar className="w-6 h-6" />, 'emerald')}
+                    <p className="text-sm mb-6 font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                        Select practices you commit to for each frequency. For each selected practice, choose one action commitment.
+                    </p>
+
+                    {practices.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 rounded-2xl border border-dashed" style={{ borderColor: 'var(--border-color)' }}>
+                            <Calendar className="w-10 h-10 mb-3 opacity-30" style={{ color: 'var(--text-tertiary)' }} />
+                            <p className="text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No practices configured for this program yet.</p>
+                            <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>An admin can add practices from the Admin panel.</p>
+                        </div>
+                    ) : (<>
+
+                        {/* Weekly */}
+                        {weeklyPractices.length > 0 && (
+                            <div className="mb-8">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-emerald-200 dark:border-emerald-800">
+                                        <Calendar className="w-3 h-3" /> Weekly Practices
+                                    </span>
+                                </div>
+                                <div className="space-y-4">
+                                    {weeklyPractices.map(pr => (
+                                        <PracticeCard
+                                            key={pr.id}
+                                            practice={pr}
+                                            checked={pr.id in practiceSelections}
+                                            selectedAction={practiceSelections[pr.id] || ''}
+                                            onToggle={() => togglePractice(pr.id)}
+                                            onSelectAction={action => selectAction(pr.id, action)}
+                                            colorTheme="emerald"
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Monthly */}
+                        {monthlyPractices.length > 0 && (
+                            <div className="mb-8">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-indigo-200 dark:border-indigo-800">
+                                        <Calendar className="w-3 h-3" /> Monthly Practices
+                                    </span>
+                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${monthlyPractices.filter(p => p.id in practiceSelections).length >= 2 ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800' : 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'}`}>
+                                        {monthlyPractices.filter(p => p.id in practiceSelections).length} / {monthlyPractices.length} (min 2)
+                                    </span>
+                                </div>
+                                <div className="space-y-4">
+                                    {monthlyPractices.map(pr => (
+                                        <PracticeCard
+                                            key={pr.id}
+                                            practice={pr}
+                                            checked={pr.id in practiceSelections}
+                                            selectedAction={practiceSelections[pr.id] || ''}
+                                            onToggle={() => togglePractice(pr.id)}
+                                            onSelectAction={action => selectAction(pr.id, action)}
+                                            colorTheme="indigo"
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Quarterly */}
+                        {quarterlyPractices.length > 0 && (
+                            <div>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-orange-200 dark:border-orange-800">
+                                        <Calendar className="w-3 h-3" /> Quarterly Practices
+                                    </span>
+                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${quarterlyPractices.filter(p => p.id in practiceSelections).length >= 2 ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800' : 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'}`}>
+                                        {quarterlyPractices.filter(p => p.id in practiceSelections).length} / {quarterlyPractices.length} (min 2)
+                                    </span>
+                                </div>
+                                <div className="space-y-4">
+                                    {quarterlyPractices.map(pr => (
+                                        <PracticeCard
+                                            key={pr.id}
+                                            practice={pr}
+                                            checked={pr.id in practiceSelections}
+                                            selectedAction={practiceSelections[pr.id] || ''}
+                                            onToggle={() => togglePractice(pr.id)}
+                                            onSelectAction={action => selectAction(pr.id, action)}
+                                            colorTheme="orange"
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </>)}
+                </motion.div>
+
+                {/* ── SECTION C: My Own Digital Habit ──────────────────────── */}
+                <motion.div variants={itemVariants} className="rounded-3xl border shadow-sm p-6 lg:p-8" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
+                    {sectionHeader('C. My Own Digital Habit', <Target className="w-6 h-6" />, 'violet')}
                     <div className="space-y-6">
                         <div>
-                            <label className={labelCls} style={{ color: 'var(--text-secondary)' }}><Edit3 className="w-3.5 h-3.5" /> Habit I Will Build *</label>
+                            <label className={labelCls} style={{ color: 'var(--text-secondary)' }}><Edit3 className="w-3.5 h-3.5" /> Habit Description *</label>
                             <textarea
                                 required
-                                rows={2}
-                                placeholder="Describe the specific habit you will develop…"
-                                value={sectionE.personal_habit}
-                                onChange={e => setSectionE(p => ({ ...p, personal_habit: e.target.value }))}
+                                rows={3}
+                                placeholder="Describe the specific digital habit you will develop…"
+                                value={sectionC.personal_habit}
+                                onChange={e => setSectionC(p => ({ ...p, personal_habit: e.target.value }))}
                                 className={inputCls}
                                 style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
                             />
@@ -379,12 +455,11 @@ const PledgePage = () => {
                             <div>
                                 <label className={labelCls} style={{ color: 'var(--text-secondary)' }}><Repeat className="w-3.5 h-3.5" /> Frequency</label>
                                 <select
-                                    value={sectionE.habit_frequency}
-                                    onChange={e => setSectionE(p => ({ ...p, habit_frequency: e.target.value }))}
+                                    value={sectionC.habit_frequency}
+                                    onChange={e => setSectionC(p => ({ ...p, habit_frequency: e.target.value }))}
                                     className={`${inputCls} bg-white dark:bg-[#0f172a]`}
                                     style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
                                 >
-                                    <option value="daily">Daily</option>
                                     <option value="weekly">Weekly</option>
                                     <option value="monthly">Monthly</option>
                                     <option value="quarterly">Quarterly</option>
@@ -395,8 +470,8 @@ const PledgePage = () => {
                                 <input
                                     type="text"
                                     placeholder="KPI / observable outcome…"
-                                    value={sectionE.measure_success}
-                                    onChange={e => setSectionE(p => ({ ...p, measure_success: e.target.value }))}
+                                    value={sectionC.measure_success}
+                                    onChange={e => setSectionC(p => ({ ...p, measure_success: e.target.value }))}
                                     className={inputCls}
                                     style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
                                 />
@@ -405,13 +480,13 @@ const PledgePage = () => {
                     </div>
                 </motion.div>
 
-                {/* ── SECTION F: Behaviours ────────────────────────────────────── */}
+                {/* ── SECTION D: Key Digital Behaviours ────────────────────── */}
                 <motion.div variants={itemVariants} className="rounded-3xl border shadow-sm p-6 lg:p-8" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
-                    {sectionHeader('F. Behaviour Commitments', <RefreshIcon className="w-6 h-6" />, 'rose')}
+                    {sectionHeader('D. Key Digital Behaviours', <Repeat className="w-6 h-6" />, 'rose')}
                     <p className="text-sm font-medium mb-6" style={{ color: 'var(--text-tertiary)' }}>Add behaviours you will start, reduce, or stop. Maximum 5 rows.</p>
 
                     <div className="hidden md:grid grid-cols-[2fr_1fr_2fr_1fr_auto] gap-4 mb-3 px-3">
-                        {['Behaviour', 'Type', 'Why it matters', 'First action date', ''].map(h => (
+                        {['Behaviour', 'Start / Reduce / Stop', 'Why it matters', 'First Action by Date', ''].map(h => (
                             <span key={h} className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>{h}</span>
                         ))}
                     </div>
@@ -456,7 +531,7 @@ const PledgePage = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="md:hidden block text-[10px] font-bold uppercase mb-1.5" style={{ color: 'var(--text-secondary)' }}>First action date</label>
+                                        <label className="md:hidden block text-[10px] font-bold uppercase mb-1.5" style={{ color: 'var(--text-secondary)' }}>First action by date</label>
                                         <input
                                             type="date"
                                             value={b.first_action_date}
@@ -489,7 +564,87 @@ const PledgePage = () => {
                     )}
                 </motion.div>
 
-                {/* ── Submit ───────────────────────────────────────────────────── */}
+                {/* ── SECTION E: Review and Sign-off ───────────────────────── */}
+                <motion.div variants={itemVariants} className="rounded-3xl border shadow-sm p-6 lg:p-8" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
+                    {sectionHeader('E. Review and Sign-off', <PenLine className="w-6 h-6" />, 'amber')}
+                    <div className="space-y-6">
+
+                        {/* Self-review check-in dates */}
+                        <div>
+                            <label className={labelCls} style={{ color: 'var(--text-secondary)' }}><CalendarCheck className="w-3.5 h-3.5" /> Self-Review Check-in Dates (up to 3)</label>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {['review_date_1', 'review_date_2', 'review_date_3'].map((key, i) => (
+                                    <div key={key}>
+                                        <span className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-tertiary)' }}>Check-in {i + 1}</span>
+                                        <input
+                                            type="date"
+                                            value={sectionE[key]}
+                                            onChange={e => setSectionE(p => ({ ...p, [key]: e.target.value }))}
+                                            className={`${inputCls} bg-white dark:bg-[#0f172a]`}
+                                            style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Name + Designation */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className={labelCls} style={{ color: 'var(--text-secondary)' }}><User className="w-3.5 h-3.5" /> Name *</label>
+                                <input
+                                    required
+                                    type="text"
+                                    placeholder="Your full name"
+                                    value={sectionE.signature_name}
+                                    onChange={e => setSectionE(p => ({ ...p, signature_name: e.target.value }))}
+                                    className={inputCls}
+                                    style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                                />
+                            </div>
+                            <div>
+                                <label className={labelCls} style={{ color: 'var(--text-secondary)' }}><Briefcase className="w-3.5 h-3.5" /> Designation</label>
+                                <input
+                                    type="text"
+                                    placeholder="Your job title / role"
+                                    value={sectionE.signoff_designation}
+                                    onChange={e => setSectionE(p => ({ ...p, signoff_designation: e.target.value }))}
+                                    className={inputCls}
+                                    style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Digital Signature */}
+                        <div>
+                            <label className={labelCls} style={{ color: 'var(--text-secondary)' }}><PenLine className="w-3.5 h-3.5" /> Digital Signature *</label>
+                            <p className="text-xs mb-2 font-medium" style={{ color: 'var(--text-tertiary)' }}>Type your full name below as your digital signature affirming your commitment to this pledge.</p>
+                            <input
+                                required
+                                type="text"
+                                placeholder="Type your full name to sign…"
+                                value={sectionE.digital_signature}
+                                onChange={e => setSectionE(p => ({ ...p, digital_signature: e.target.value }))}
+                                className={`${inputCls} font-semibold italic`}
+                                style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                            />
+                        </div>
+
+                        {/* Submission Date */}
+                        <div className="md:w-1/2">
+                            <label className={labelCls} style={{ color: 'var(--text-secondary)' }}><Calendar className="w-3.5 h-3.5" /> Submission Date</label>
+                            <input
+                                type="date"
+                                value={sectionE.submission_date}
+                                onChange={e => setSectionE(p => ({ ...p, submission_date: e.target.value }))}
+                                className={`${inputCls} bg-white dark:bg-[#0f172a]`}
+                                style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                            />
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* ── Submit Bar ───────────────────────────────────────────── */}
                 <motion.div variants={itemVariants} className="sticky bottom-6 z-20">
                     <div className="backdrop-blur-xl border rounded-[2rem] shadow-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-6" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-color)', opacity: 0.95 }}>
                         <div className="flex items-center gap-3">
@@ -519,13 +674,8 @@ const PledgePage = () => {
     );
 };
 
-// Component for repeating icon
-const RefreshIcon = ({ className }) => <Repeat className={className} />;
-
 // ─── Practice Card Sub-component ─────────────────────────────────────────────
 const PracticeCard = ({ practice, checked, selectedAction, onToggle, onSelectAction, colorTheme }) => {
-    // Dynamic classes based on theme string without string interpolation for tailwind purging safety?
-    // Tailwind v4 uses variable interpolation, but let's be safe.
     const tMap = {
         emerald: { border: 'border-emerald-200 dark:border-emerald-800', bg: 'bg-emerald-50 dark:bg-emerald-900/10', text: 'text-emerald-700 dark:text-emerald-400', badge: 'bg-emerald-100 dark:bg-emerald-900/40', radio: 'accent-emerald-600' },
         indigo: { border: 'border-indigo-200 dark:border-indigo-800', bg: 'bg-indigo-50 dark:bg-indigo-900/10', text: 'text-indigo-700 dark:text-indigo-400', badge: 'bg-indigo-100 dark:bg-indigo-900/40', radio: 'accent-indigo-600' },

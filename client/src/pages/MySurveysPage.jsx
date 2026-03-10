@@ -113,7 +113,9 @@ const MySurveysPage = () => {
                                                 {isCompleted ? 'Completed' : 'Pending'}
                                             </span>
                                         </div>
-                                        <p className="text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>{inst.program_title}</p>
+                                        <p className="text-sm font-medium mb-2 truncate" style={{ color: 'var(--text-secondary)' }}>
+                                            {inst.practice_names ? `Practices: ${inst.practice_names}` : inst.program_title}
+                                        </p>
                                         <p className="text-xs font-medium flex items-center gap-1.5" style={{ color: 'var(--text-tertiary)' }}>
                                             <Clock className="w-3 h-3" /> Due: <span className="font-bold" style={{ color: 'var(--text-secondary)' }}>{inst.due_date?.slice(0, 10)}</span>
                                             {isCompleted && <span className="ml-2 pl-2 border-l" style={{ borderColor: 'var(--border-color)' }}>Submitted: <span className="font-bold">{inst.completed_at?.slice(0, 10)}</span></span>}

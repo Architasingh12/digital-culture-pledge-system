@@ -102,6 +102,24 @@ const createTables = async () => {
       ALTER TABLE pledges ADD COLUMN IF NOT EXISTS problem_statement TEXT;
     `);
 
+    // Safe migration: add Section E sign-off fields if not exists
+    await client.query(`
+      ALTER TABLE pledges ADD COLUMN IF NOT EXISTS review_dates TEXT;
+    `);
+    await client.query(`
+      ALTER TABLE pledges ADD COLUMN IF NOT EXISTS signature_name VARCHAR(255);
+    `);
+    await client.query(`
+      ALTER TABLE pledges ADD COLUMN IF NOT EXISTS signoff_designation VARCHAR(255);
+    `);
+    await client.query(`
+      ALTER TABLE pledges ADD COLUMN IF NOT EXISTS digital_signature TEXT;
+    `);
+    await client.query(`
+      ALTER TABLE pledges ADD COLUMN IF NOT EXISTS submission_date DATE;
+    `);
+
+
     // 6. pledge_practices
     await client.query(`
       CREATE TABLE IF NOT EXISTS pledge_practices (
