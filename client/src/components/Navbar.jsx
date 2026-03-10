@@ -53,6 +53,8 @@ const Navbar = ({ onMenuToggle }) => {
                     <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 border-2" style={{ borderColor: 'var(--bg-surface)' }}></span>
                 </button>
 
+                
+
                 {/* User Dropdown */}
                 <div className="relative">
                     <button

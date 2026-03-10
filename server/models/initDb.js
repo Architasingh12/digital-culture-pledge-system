@@ -15,9 +15,23 @@ const createTables = async () => {
           email VARCHAR(255) UNIQUE NOT NULL,
           designation VARCHAR(255),
           photo_url TEXT,
-          role VARCHAR(50) DEFAULT 'participant' CHECK (role IN ('participant', 'admin')),
+          password VARCHAR(255),
+          role VARCHAR(50) DEFAULT 'participant' CHECK (role IN ('participant', 'admin', 'super_admin', 'company_admin')),
           created_at TIMESTAMP DEFAULT NOW()
       );
+    `);
+
+    // Safe migration: add password column if it doesn't exist
+    await client.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR(255);
+    `);
+
+    // Safe migration: expand role CHECK constraint to include new roles
+    await client.query(`ALTER TABLE users ALTER COLUMN role TYPE VARCHAR(50)`);
+    await client.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`);
+    await client.query(`
+      ALTER TABLE users ADD CONSTRAINT users_role_check
+        CHECK (role IN ('participant', 'admin', 'super_admin', 'company_admin'));
     `);
 
     // 2. otp_tokens

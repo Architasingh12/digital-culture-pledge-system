@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+// eslint-disable-next-line no-unused-vars
 import { AnimatePresence, motion } from 'framer-motion';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';

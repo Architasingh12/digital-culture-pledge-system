@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import axiosInstance from '../api/axiosInstance';
 import { Link } from 'react-router-dom';
+// eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
 import { ClipboardList, Star, TrendingUp, Calendar, ArrowRight, CirclePlay, CheckCircle2, XCircle } from 'lucide-react';
 

@@ -1,25 +1,48 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './layouts/AppLayout';
 
+// Public auth pages
 import LoginPage from './pages/LoginPage';
-import OtpVerifyPage from './pages/OtpVerifyPage';
-import DashboardPage from './pages/DashboardPage';
-import PledgePage from './pages/PledgePage';
-import MyPledgesPage from './pages/MyPledgesPage';
-import MySurveysPage from './pages/MySurveysPage';
-import SurveyFormPage from './pages/SurveyFormPage';
+import RegisterPage from './pages/RegisterPage';
+import AdminLoginPage from './pages/AdminLoginPage';
+import CompanyLoginPage from './pages/CompanyLoginPage';
+import ParticipantLoginPage from './pages/ParticipantLoginPage';
+
+// Super Admin pages
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import CompaniesPage from './pages/CompaniesPage';
+import CompanyAdminsPage from './pages/CompanyAdminsPage';
+import AdminReports from './pages/AdminReports'; // reused as Analytics
+
+// Company Admin pages (existing, served at /company/* routes)
 import AdminDashboardOverview from './pages/AdminDashboardOverview';
 import AdminPrograms from './pages/AdminPrograms';
 import AdminPractices from './pages/AdminPractices';
 import AdminParticipants from './pages/AdminParticipants';
 import AdminSurveys from './pages/AdminSurveys';
-import AdminReports from './pages/AdminReports';
 import AdminPledgeWizard from './pages/AdminPledgeWizard';
+
+// Participant pages (existing, served at /participant/* routes)
+import DashboardPage from './pages/DashboardPage';
+import PledgePage from './pages/PledgePage';
 import PledgeSuccessPage from './pages/PledgeSuccessPage';
+import MyPledgesPage from './pages/MyPledgesPage';
+import MySurveysPage from './pages/MySurveysPage';
+import SurveyFormPage from './pages/SurveyFormPage';
+
+// Smart root redirect based on role
+const RootRedirect = () => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role === 'super_admin') return <Navigate to="/admin/dashboard" replace />;
+  if (user.role === 'company_admin' || user.role === 'admin') return <Navigate to="/company/dashboard" replace />;
+  return <Navigate to="/participant/dashboard" replace />;
+};
 
 function App() {
   return (
@@ -42,11 +65,55 @@ function App() {
             }}
           />
           <Routes>
-            {/* Public routes */}
+            {/* ── Public routes ─────────────────────────────────── */}
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/verify-otp" element={<OtpVerifyPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/admin/login" element={<AdminLoginPage />} />
+            <Route path="/company/login" element={<CompanyLoginPage />} />
+            <Route path="/participant/login" element={<ParticipantLoginPage />} />
 
-            {/* Protected routes — inside layout */}
+            {/* ── Super Admin routes ─────────────────────────────── */}
+            <Route element={
+              <ProtectedRoute allowedRoles={['super_admin']}>
+                <AppLayout />
+              </ProtectedRoute>
+            }>
+              <Route path="/admin/dashboard" element={<SuperAdminDashboard />} />
+              <Route path="/admin/companies" element={<CompaniesPage />} />
+              <Route path="/admin/company-admins" element={<CompanyAdminsPage />} />
+              <Route path="/admin/analytics" element={<AdminReports />} />
+            </Route>
+
+            {/* ── Company Admin routes ───────────────────────────── */}
+            <Route element={
+              <ProtectedRoute allowedRoles={['company_admin', 'admin']}>
+                <AppLayout />
+              </ProtectedRoute>
+            }>
+              <Route path="/company/dashboard" element={<AdminDashboardOverview />} />
+              <Route path="/company/wizard" element={<AdminPledgeWizard />} />
+              <Route path="/company/programs" element={<AdminPrograms />} />
+              <Route path="/company/practices" element={<AdminPractices />} />
+              <Route path="/company/surveys" element={<AdminSurveys />} />
+              <Route path="/company/reports" element={<AdminReports />} />
+              <Route path="/company/participants" element={<AdminParticipants />} />
+            </Route>
+
+            {/* ── Participant routes ─────────────────────────────── */}
+            <Route element={
+              <ProtectedRoute allowedRoles={['participant']}>
+                <AppLayout />
+              </ProtectedRoute>
+            }>
+              <Route path="/participant/dashboard" element={<DashboardPage />} />
+              <Route path="/participant/pledge" element={<PledgePage />} />
+              <Route path="/participant/pledges" element={<MyPledgesPage />} />
+              <Route path="/participant/surveys" element={<MySurveysPage />} />
+              <Route path="/participant/survey/:id" element={<SurveyFormPage />} />
+              <Route path="/pledge-success" element={<PledgeSuccessPage />} />
+            </Route>
+
+            {/* Legacy routes – keep for backward compatibility */}
             <Route element={
               <ProtectedRoute>
                 <AppLayout />
@@ -54,22 +121,21 @@ function App() {
             }>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/pledge" element={<PledgePage />} />
-              <Route path="/pledge-success" element={<PledgeSuccessPage />} />
               <Route path="/my-pledges" element={<MyPledgesPage />} />
               <Route path="/my-surveys" element={<MySurveysPage />} />
               <Route path="/survey/:id" element={<SurveyFormPage />} />
-              <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboardOverview /></ProtectedRoute>} />
-              <Route path="/admin/programs" element={<ProtectedRoute adminOnly><AdminPrograms /></ProtectedRoute>} />
-              <Route path="/admin/practices" element={<ProtectedRoute adminOnly><AdminPractices /></ProtectedRoute>} />
-              <Route path="/admin/participants" element={<ProtectedRoute adminOnly><AdminParticipants /></ProtectedRoute>} />
-              <Route path="/admin/surveys" element={<ProtectedRoute adminOnly><AdminSurveys /></ProtectedRoute>} />
-              <Route path="/admin/reports" element={<ProtectedRoute adminOnly><AdminReports /></ProtectedRoute>} />
-              <Route path="/admin/wizard" element={<ProtectedRoute adminOnly><AdminPledgeWizard /></ProtectedRoute>} />
+              <Route path="/admin" element={<AdminDashboardOverview />} />
+              <Route path="/admin/programs" element={<AdminPrograms />} />
+              <Route path="/admin/practices" element={<AdminPractices />} />
+              <Route path="/admin/participants" element={<AdminParticipants />} />
+              <Route path="/admin/surveys" element={<AdminSurveys />} />
+              <Route path="/admin/reports" element={<AdminReports />} />
+              <Route path="/admin/wizard" element={<AdminPledgeWizard />} />
             </Route>
 
-            {/* Catch-all */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            {/* ── Catch-all ──────────────────────────────────────── */}
+            <Route path="/" element={<RootRedirect />} />
+            <Route path="*" element={<RootRedirect />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import axiosInstance from '../api/axiosInstance';
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import { Target, PlusCircle, CheckCircle2, LayoutTemplate, Activity } from 'lucide-react';
 

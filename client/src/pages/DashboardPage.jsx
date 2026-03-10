@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react';
 import axiosInstance from '../api/axiosInstance';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
+// eslint-disable-next-line no-unused-vars
+import { motion } from 'framer-motion';
 import { Target, ClipboardList, ShieldCheck, PieChart, ArrowRight } from 'lucide-react';
 
 const StatCard = ({ label, value, icon, colorClass }) => (
-    <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+    <div
         className="rounded-3xl p-6 shadow-sm border flex items-center justify-between hover:shadow-md transition-shadow group cursor-default"
         style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}
     >
@@ -19,7 +18,7 @@ const StatCard = ({ label, value, icon, colorClass }) => (
         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-inner ${colorClass} group-hover:scale-105 transition-transform`}>
             {icon}
         </div>
-    </motion.div>
+    </div>
 );
 
 const SkeletonCard = () => (

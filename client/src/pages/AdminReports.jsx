@@ -3,9 +3,10 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, Legend
 } from 'recharts';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import toast from 'react-hot-toast';
 import axiosInstance from '../api/axiosInstance';
+// eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
 import { Users, CalendarClock, CalendarDays, Award, Star, TrendingDown, TrendingUp, Target, Search, RefreshCw, FileSpreadsheet, FileText, ChevronUp, ChevronDown } from 'lucide-react';
 
@@ -104,33 +105,50 @@ const AdminReports = () => {
     };
 
     // ── Export Excel ─────────────────────────────────────────────────────────
-    const exportExcel = () => {
+    const exportExcel = async () => {
         if (!data) return;
-        const wb = XLSX.utils.book_new();
+        try {
+            const wb = new ExcelJS.Workbook();
 
-        const summaryData = [
-            ['Metric', 'Value'],
-            ['Total Participants', data.summary.totalParticipants],
-            ['Avg Weekly Execution %', data.summary.avgWeeklyExecution + '%'],
-            ['Avg Monthly Execution %', data.summary.avgMonthlyExecution + '%'],
-            ['% with 100% Adherence', data.summary.adherencePct + '%'],
-            ['Most Chosen Practice', data.summary.mostChosenPractice],
-            ['Least Chosen Practice', data.summary.leastChosenPractice],
-            ['Avg Improvement Score', (data.summary.avgImprovementScore >= 0 ? '+' : '') + data.summary.avgImprovementScore + ' pts'],
-        ];
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryData), 'Summary');
+            // Summary sheet
+            const summarySheet = wb.addWorksheet('Summary');
+            summarySheet.addRow(['Metric', 'Value']);
+            summarySheet.addRow(['Total Participants', data.summary.totalParticipants]);
+            summarySheet.addRow(['Avg Weekly Execution %', data.summary.avgWeeklyExecution + '%']);
+            summarySheet.addRow(['Avg Monthly Execution %', data.summary.avgMonthlyExecution + '%']);
+            summarySheet.addRow(['% with 100% Adherence', data.summary.adherencePct + '%']);
+            summarySheet.addRow(['Most Chosen Practice', data.summary.mostChosenPractice]);
+            summarySheet.addRow(['Least Chosen Practice', data.summary.leastChosenPractice]);
+            summarySheet.addRow(['Avg Improvement Score', (data.summary.avgImprovementScore >= 0 ? '+' : '') + data.summary.avgImprovementScore + ' pts']);
 
-        const headers = ['Name', 'Email', 'Program', 'Weekly Practices', 'Monthly Practices', 'Key Behaviour', 'Surveys Completed', 'Surveys Total', 'Completion %'];
-        const rows = data.participants.map(p => [
-            p.name, p.email, p.program_title || '—',
-            p.weekly_count, p.monthly_count,
-            p.key_behaviour || '—',
-            p.surveys_completed, p.surveys_total, p.completion_pct + '%',
-        ]);
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headers, ...rows]), 'Participants');
+            // Participants sheet
+            const partSheet = wb.addWorksheet('Participants');
+            partSheet.addRow(['Name', 'Email', 'Program', 'Weekly Practices', 'Monthly Practices', 'Key Behaviour', 'Surveys Completed', 'Surveys Total', 'Completion %']);
+            data.participants.forEach(p => {
+                partSheet.addRow([
+                    p.name, p.email, p.program_title || '—',
+                    p.weekly_count, p.monthly_count,
+                    p.key_behaviour || '—',
+                    p.surveys_completed, p.surveys_total, p.completion_pct + '%',
+                ]);
+            });
 
-        XLSX.writeFile(wb, 'digital-pledge-report.xlsx');
-        toast.success('Excel report downloaded!');
+            // Download
+            const buffer = await wb.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'digital-pledge-report.xlsx');
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            URL.revokeObjectURL(url);
+            toast.success('Excel report downloaded!');
+        } catch (err) {
+            console.error('Excel export error:', err);
+            toast.error('Failed to generate Excel report.');
+        }
     };
 
     // ── Export PDF ───────────────────────────────────────────────────────────

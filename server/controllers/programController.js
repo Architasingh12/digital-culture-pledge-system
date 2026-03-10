@@ -58,16 +58,20 @@ const updateProgram = async (req, res) => {
     }
 };
 
-// DELETE /api/programs/:id (Admin only)
+// DELETE /api/programs/:id (Admin only)  
 const deleteProgram = async (req, res) => {
     const { id } = req.params;
+
     try {
         const result = await pool.query('DELETE FROM programs WHERE id = $1 RETURNING id', [id]);
         if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Program not found' });
         res.status(200).json({ success: true, message: 'Program deleted' });
+
     } catch (error) {
         res.status(500).json({ success: false, message: 'Error deleting program' });
     }
 };
 
 module.exports = { createProgram, getPrograms, getProgramById, updateProgram, deleteProgram };
+
+

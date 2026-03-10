@@ -1,13 +1,10 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import axiosInstance from '../api/axiosInstance';
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Search, Target, RefreshCw } from 'lucide-react';
 
-const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
-};
 
 const itemVariants = {
     hidden: { opacity: 0, y: 15 },

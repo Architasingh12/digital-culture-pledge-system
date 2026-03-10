@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import axiosInstance from '../api/axiosInstance';
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import { CalendarClock, PlusCircle, CheckCircle2, Play, Pause, Trash2, LayoutList, History } from 'lucide-react';
 
@@ -11,15 +12,7 @@ const INTERVAL_PRESETS = [
     { label: 'Custom', value: 'custom' },
 ];
 
-const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
-};
 
-const itemVariants = {
-    hidden: { opacity: 0, scale: 0.98, y: 10 },
-    visible: { opacity: 1, scale: 1, y: 0 }
-};
 
 const AdminSurveys = () => {
     const [programs, setPrograms] = useState([]);

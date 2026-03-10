@@ -66,6 +66,8 @@ const updateSchedule = async (req, res) => {
     }
 };
 
+
+
 // ─── Admin: Delete a schedule ────────────────────────────────────────────────
 const deleteSchedule = async (req, res) => {
     try {
@@ -122,7 +124,7 @@ const getSurveyInstance = async (req, res) => {
         if (instance.user_id !== userId && req.user.role !== 'admin') {
             return res.status(403).json({ success: false, message: 'Access denied' });
         }
-
+ 
         // Get practices from this pledge
         const practicesResult = await pool.query(
             `SELECT pp.practice_id, pp.selected_action, pr.title, pr.type
@@ -207,7 +209,7 @@ const submitSurveyResponse = async (req, res) => {
     }
 };
 
-// ─── Admin: Get all instances (for admin summary view) ───────────────────────
+// ─── Admin: Get all instances (for admin summary view) ──────────────────────
 const getAllInstances = async (req, res) => {
     try {
         const result = await pool.query(
@@ -225,6 +227,7 @@ const getAllInstances = async (req, res) => {
     } catch (err) {
         console.error('getAllInstances error:', err);
         return res.status(500).json({ success: false, message: 'Server error' });
+        
     }
 };
 

@@ -1,4 +1,8 @@
 const pool = require('../config/db');
+const bcrypt = require('bcryptjs');
+
+// Password regex for enforcing strong passwords during admin creation
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]).{8,}$/;
 
 // GET /api/admin/dashboard-stats
 const getDashboardStats = async (req, res) => {
@@ -31,6 +35,7 @@ const getDashboardStats = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Server error fetching stats.' });
     }
 };
+
 
 // POST /api/admin/create-program-with-practices
 // Body: { title, description, start_date, end_date, max_practices, max_behaviours, practices: [{ type, title, actions[] }] }
@@ -82,111 +87,162 @@ const createProgramWithPractices = async (req, res) => {
 
 // GET /api/admin/report
 const getDetailedReport = async (req, res) => {
+    let totalParticipants = 0;
+    let practiceRows = [];
+    let mostChosen = '—';
+    let leastChosen = '—';
+    let levelMap = { H: 0, M: 0, L: 0 };
+    let avgExecutionPct = 0;
+    let avgWeekly = 0;
+    let avgMonthly = 0;
+    let adherencePct = 0;
+    let improvement = 0;
+    let participantRows = [];
+
     try {
         // 1. Total participants
-        const totalParticipants = parseInt(
-            (await pool.query('SELECT COUNT(DISTINCT user_id) AS n FROM pledges')).rows[0].n, 10) || 0;
+        try {
+            const participantsResult = await pool.query('SELECT COUNT(DISTINCT user_id) AS n FROM pledges');
+            totalParticipants = parseInt(participantsResult.rows[0].n, 10) || 0;
+        } catch (error) {
+            console.warn('Error fetching total participants:', error.message);
+        }
 
         // 2. Practice selection counts (for most/least chosen & bar chart)
-        const practiceCounts = await pool.query(`
-            SELECT pr.title, pr.type, COUNT(pp.id) AS chosen_count
-            FROM practices pr
-            LEFT JOIN pledge_practices pp ON pp.practice_id = pr.id
-            GROUP BY pr.id, pr.title, pr.type
-            ORDER BY chosen_count DESC
-        `);
-        const practiceRows = practiceCounts.rows;
-        const mostChosen = practiceRows[0]?.title || '—';
-        const leastChosen = practiceRows[practiceRows.length - 1]?.title || '—';
+        try {
+            const practiceCounts = await pool.query(`
+                SELECT pr.title, pr.type, COUNT(pp.id) AS chosen_count
+                FROM practices pr
+                LEFT JOIN pledge_practices pp ON pp.practice_id = pr.id
+                GROUP BY pr.id, pr.title, pr.type
+                ORDER BY chosen_count DESC
+            `);
+            practiceRows = practiceCounts.rows;
+            if (practiceRows.length > 0) {
+                mostChosen = practiceRows[0]?.title || '—';
+                leastChosen = practiceRows[practiceRows.length - 1]?.title || '—';
+            }
+        } catch (error) {
+            console.warn('Error fetching practice counts:', error.message);
+        }
 
         // 3. Survey level distribution & avg execution scores
-        const surveyLevels = await pool.query(`
-            SELECT action_taken_level, COUNT(*) AS cnt
-            FROM survey_instance_responses
-            GROUP BY action_taken_level
-        `);
-        const levelMap = { H: 0, M: 0, L: 0 };
-        let totalResponses = 0, totalScore = 0;
-        for (const r of surveyLevels.rows) {
-            const level = r.action_taken_level;
-            const cnt = parseInt(r.cnt, 10);
-            if (levelMap[level] !== undefined) levelMap[level] = cnt;
-            totalResponses += cnt;
-            totalScore += level === 'H' ? cnt * 100 : level === 'M' ? cnt * 50 : 0;
+        try {
+            const surveyLevels = await pool.query(`
+                SELECT action_taken_level, COUNT(*) AS cnt
+                FROM survey_instance_responses
+                GROUP BY action_taken_level
+            `);
+            let totalResponses = 0, totalScore = 0;
+            for (const r of surveyLevels.rows) {
+                const level = r.action_taken_level;
+                const cnt = parseInt(r.cnt, 10);
+                if (levelMap[level] !== undefined) levelMap[level] = cnt;
+                totalResponses += cnt;
+                totalScore += level === 'H' ? cnt * 100 : level === 'M' ? cnt * 50 : 0;
+            }
+            avgExecutionPct = totalResponses > 0 ? Math.round(totalScore / totalResponses) : 0;
+        } catch (error) {
+            console.warn('Error fetching survey level distribution:', error.message);
         }
-        const avgExecutionPct = totalResponses > 0 ? Math.round(totalScore / totalResponses) : 0;
 
         // 4. Weekly vs monthly avg practice execution (based on survey_instance_responses joined to practices)
-        const weeklyMonthly = await pool.query(`
-            SELECT pr.type,
-                   ROUND(AVG(CASE sir.action_taken_level WHEN 'H' THEN 100 WHEN 'M' THEN 50 ELSE 0 END)) AS avg_score
-            FROM survey_instance_responses sir
-            JOIN practices pr ON pr.id = sir.practice_id
-            WHERE pr.type IN ('weekly','monthly')
-            GROUP BY pr.type
-        `);
-        let avgWeekly = 0, avgMonthly = 0;
-        for (const r of weeklyMonthly.rows) {
-            if (r.type === 'weekly') avgWeekly = parseInt(r.avg_score, 10) || 0;
-            if (r.type === 'monthly') avgMonthly = parseInt(r.avg_score, 10) || 0;
+        try {
+            const weeklyMonthly = await pool.query(`
+                SELECT pr.type,
+                       ROUND(AVG(CASE sir.action_taken_level WHEN 'H' THEN 100 WHEN 'M' THEN 50 ELSE 0 END)) AS avg_score
+                FROM survey_instance_responses sir
+                JOIN practices pr ON pr.id = sir.practice_id
+                WHERE pr.type IN ('weekly','monthly')
+                GROUP BY pr.type
+            `);
+            for (const r of weeklyMonthly.rows) {
+                if (r.type === 'weekly') avgWeekly = parseInt(r.avg_score, 10) || 0;
+                if (r.type === 'monthly') avgMonthly = parseInt(r.avg_score, 10) || 0;
+            }
+        } catch (error) {
+            console.warn('Error fetching weekly/monthly execution:', error.message);
         }
 
         // 5. % with 100% adherence (all their survey responses were H)
-        const adherenceRes = await pool.query(`
-            SELECT COUNT(*) AS perfect
-            FROM (
-                SELECT si.pledge_id
-                FROM survey_instances si
-                JOIN survey_instance_responses sir ON sir.instance_id = si.id
-                GROUP BY si.pledge_id
-                HAVING SUM(CASE WHEN sir.action_taken_level = 'H' THEN 1 ELSE 0 END) = COUNT(sir.id)
-                   AND COUNT(sir.id) > 0
-            ) sub
-        `);
-        const perfectCount = parseInt(adherenceRes.rows[0].perfect, 10) || 0;
-        const adherencePct = totalParticipants > 0 ? Math.round((perfectCount / totalParticipants) * 100) : 0;
+        try {
+            const adherenceRes = await pool.query(`
+                SELECT COUNT(*) AS perfect
+                FROM (
+                    SELECT si.pledge_id
+                    FROM survey_instances si
+                    JOIN survey_instance_responses sir ON sir.instance_id = si.id
+                    GROUP BY si.pledge_id
+                    HAVING SUM(CASE WHEN sir.action_taken_level = 'H' THEN 1 ELSE 0 END) = COUNT(sir.id)
+                       AND COUNT(sir.id) > 0
+                ) sub
+            `);
+            const perfectCount = parseInt(adherenceRes.rows[0].perfect, 10) || 0;
+            adherencePct = totalParticipants > 0 ? Math.round((perfectCount / totalParticipants) * 100) : 0;
+        } catch (error) {
+            console.warn('Error fetching adherence percentage:', error.message);
+        }
 
         // 6. Avg improvement score (compare first vs last H-count per participant)
-        const firstLastRes = await pool.query(`
-            SELECT pledge_id,
-                   first_value(avg_score) OVER (PARTITION BY pledge_id ORDER BY wave_rank)  AS first_score,
-                   last_value(avg_score)  OVER (PARTITION BY pledge_id ORDER BY wave_rank ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS last_score
-            FROM (
+        // Simplified approach: fetch all relevant scores and calculate in JS for robustness
+        try {
+            const allPledgeScores = await pool.query(`
                 SELECT si.pledge_id,
-                       ROW_NUMBER() OVER (PARTITION BY si.pledge_id ORDER BY si.due_date) AS wave_rank,
+                       si.due_date,
                        ROUND(AVG(CASE sir.action_taken_level WHEN 'H' THEN 100 WHEN 'M' THEN 50 ELSE 0 END)) AS avg_score
                 FROM survey_instances si
                 JOIN survey_instance_responses sir ON sir.instance_id = si.id
                 GROUP BY si.pledge_id, si.due_date
-            ) waves
-        `);
-        let improvement = 0;
-        if (firstLastRes.rows.length > 0) {
-            const diffs = firstLastRes.rows.map(r =>
-                (parseInt(r.last_score, 10) || 0) - (parseInt(r.first_score, 10) || 0));
-            improvement = Math.round(diffs.reduce((a, b) => a + b, 0) / diffs.length);
+                ORDER BY si.pledge_id, si.due_date
+            `);
+
+            const pledgeScoresMap = new Map();
+            for (const row of allPledgeScores.rows) {
+                if (!pledgeScoresMap.has(row.pledge_id)) {
+                    pledgeScoresMap.set(row.pledge_id, []);
+                }
+                pledgeScoresMap.get(row.pledge_id).push(parseInt(row.avg_score, 10) || 0);
+            }
+
+            const diffs = [];
+            for (const scores of pledgeScoresMap.values()) {
+                if (scores.length > 1) {
+                    diffs.push(scores[scores.length - 1] - scores[0]);
+                }
+            }
+
+            if (diffs.length > 0) {
+                improvement = Math.round(diffs.reduce((a, b) => a + b, 0) / diffs.length);
+            }
+        } catch (error) {
+            console.warn('Error fetching and calculating improvement score:', error.message);
         }
 
         // 7. Per-participant rows
-        const participantRows = await pool.query(`
-            SELECT u.name,
-                   u.email,
-                   pl.id AS pledge_id,
-                   prog.title AS program_title,
-                   (SELECT COUNT(*) FROM pledge_practices pp JOIN practices pr ON pr.id = pp.practice_id WHERE pp.pledge_id = pl.id AND pr.type = 'weekly')  AS weekly_count,
-                   (SELECT COUNT(*) FROM pledge_practices pp JOIN practices pr ON pr.id = pp.practice_id WHERE pp.pledge_id = pl.id AND pr.type = 'monthly') AS monthly_count,
-                   (SELECT b.behaviour_text FROM behaviours b WHERE b.pledge_id = pl.id AND b.type IN ('stop','reduce') ORDER BY b.id LIMIT 1) AS key_behaviour,
-                   (SELECT COUNT(*) FROM survey_instances si WHERE si.pledge_id = pl.id AND si.completed_at IS NOT NULL) AS surveys_completed,
-                   (SELECT COUNT(*) FROM survey_instances si WHERE si.pledge_id = pl.id) AS surveys_total,
-                   CASE WHEN (SELECT COUNT(*) FROM survey_instances si WHERE si.pledge_id = pl.id) = 0 THEN 0
-                        ELSE ROUND(100.0 * (SELECT COUNT(*) FROM survey_instances si WHERE si.pledge_id = pl.id AND si.completed_at IS NOT NULL)
-                               / (SELECT COUNT(*) FROM survey_instances si WHERE si.pledge_id = pl.id))
-                   END AS completion_pct
-            FROM pledges pl
-            JOIN users u ON u.id = pl.user_id
-            LEFT JOIN programs prog ON prog.id = pl.program_id
-            ORDER BY u.name
-        `);
+        try {
+            const participantData = await pool.query(`
+                SELECT u.name,
+                       u.email,
+                       pl.id AS pledge_id,
+                       prog.title AS program_title,
+                       (SELECT COUNT(*) FROM pledge_practices pp JOIN practices pr ON pr.id = pp.practice_id WHERE pp.pledge_id = pl.id AND pr.type = 'weekly')  AS weekly_count,
+                       (SELECT COUNT(*) FROM pledge_practices pp JOIN practices pr ON pr.id = pp.practice_id WHERE pp.pledge_id = pl.id AND pr.type = 'monthly') AS monthly_count,
+                       (SELECT b.behaviour_text FROM behaviours b WHERE b.pledge_id = pl.id AND b.type IN ('stop','reduce') ORDER BY b.id LIMIT 1) AS key_behaviour,
+                       (SELECT COUNT(*) FROM survey_instances si WHERE si.pledge_id = pl.id AND si.completed_at IS NOT NULL) AS surveys_completed,
+                       (SELECT COUNT(*) FROM survey_instances si WHERE si.pledge_id = pl.id) AS surveys_total,
+                       CASE WHEN (SELECT COUNT(*) FROM survey_instances si WHERE si.pledge_id = pl.id) = 0 THEN 0
+                            ELSE ROUND(100.0 * (SELECT COUNT(*) FROM survey_instances si WHERE si.pledge_id = pl.id AND si.completed_at IS NOT NULL)
+                                   / (SELECT COUNT(*) FROM survey_instances si WHERE si.pledge_id = pl.id))
+                       END AS completion_pct
+                FROM pledges pl
+                JOIN users u ON u.id = pl.user_id
+                LEFT JOIN programs prog ON prog.id = pl.program_id
+                ORDER BY u.name
+            `);
+            participantRows = participantData.rows;
+        } catch (error) {
+            console.warn('Error fetching participant rows:', error.message);
+        }
 
         return res.json({
             success: true,
@@ -207,10 +263,12 @@ const getDetailedReport = async (req, res) => {
                 type: r.type,
                 count: parseInt(r.chosen_count, 10),
             })),
-            participants: participantRows.rows,
+            participants: participantRows,
         });
     } catch (error) {
-        console.error('getDetailedReport error:', error);
+        // This outer catch block will only be hit if there's an error outside of the individual query blocks,
+        // or if a `console.warn` is not sufficient and we need to return an error response.
+        console.error('getDetailedReport general error:', error);
         return res.status(500).json({ success: false, message: 'Server error generating report.' });
     }
 };
@@ -293,10 +351,98 @@ const getReportPdf = async (req, res) => {
     }
 };
 
+// GET /api/admin/company-admins
+const getCompanyAdmins = async (req, res) => {
+    try {
+        const result = await pool.query(
+            "SELECT id, name, email, designation, role, created_at FROM users WHERE role = 'company_admin' ORDER BY created_at DESC"
+        );
+        return res.status(200).json({ success: true, companyAdmins: result.rows });
+    } catch (error) {
+        console.error('getCompanyAdmins error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to fetch company admins.' });
+    }
+};
+
+// POST /api/admin/company-admins
+const createCompanyAdmin = async (req, res) => {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+        return res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
+    }
+
+    if (!PASSWORD_REGEX.test(password)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Password must be at least 8 characters and include uppercase, lowercase, number, and special character.',
+        });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Check if user exists
+        const existing = await client.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase().trim()]);
+        if (existing.rows.length > 0) {
+            return res.status(409).json({ success: false, message: 'An account with this email already exists.' });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 12);
+
+        const result = await client.query(
+            `INSERT INTO users (name, email, password, role)
+             VALUES ($1, $2, $3, 'company_admin')
+             RETURNING id, name, email, role, created_at`,
+            [name.trim(), email.toLowerCase().trim(), passwordHash]
+        );
+
+        await client.query('COMMIT');
+
+        return res.status(201).json({
+            success: true,
+            message: 'Company created successfully.',
+            companyAdmin: result.rows[0],
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('createCompanyAdmin error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to create company admin.' });
+    } finally {
+        client.release();
+    }
+};
+
+// GET /api/admin/super-dashboard-stats
+const getSuperAdminStats = async (req, res) => {
+    try {
+        const companiesRes = await pool.query("SELECT COUNT(*) AS total FROM users WHERE role = 'company_admin'");
+        const participantsRes = await pool.query("SELECT COUNT(*) AS total FROM users WHERE role = 'participant'");
+        const programsRes = await pool.query('SELECT COUNT(*) AS total FROM programs');
+
+        return res.status(200).json({
+            success: true,
+            stats: {
+                totalCompanies: parseInt(companiesRes.rows[0].total, 10) || 0,
+                companyAdmins: parseInt(companiesRes.rows[0].total, 10) || 0,
+                totalParticipants: parseInt(participantsRes.rows[0].total, 10) || 0,
+                activeProgrammes: parseInt(programsRes.rows[0].total, 10) || 0,
+            },
+        });
+    } catch (error) {
+        console.error('getSuperAdminStats error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to fetch dashboard stats.' });
+    }
+};
+
 module.exports = {
     getDashboardStats,
     createProgramWithPractices,
     getDetailedReport,
     getReportPdf,
+    getCompanyAdmins,
+    createCompanyAdmin,
+    getSuperAdminStats,
 };
 

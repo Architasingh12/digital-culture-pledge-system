@@ -1,26 +1,50 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, PenTool, ClipboardList, BarChart, Settings, Users, Sparkles, BookOpen, LogOut, FileText, CheckCircle, Database } from 'lucide-react';
+import {
+    LayoutDashboard, PenTool, ClipboardList, BarChart, Settings,
+    Users, Sparkles, BookOpen, LogOut, FileText, CheckCircle,
+    Database, Building2, UserCog, LineChart,
+} from 'lucide-react';
 
-const navItems = [
-    { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-    { to: '/pledge', label: 'Sign Pledge', icon: <PenTool size={20} /> },
-    { to: '/my-pledges', label: 'My Pledges', icon: <ClipboardList size={20} /> },
-    { to: '/my-surveys', label: 'My Surveys', icon: <CheckCircle size={20} /> },
+// ── Menu definitions ──────────────────────────────────────────────────────────
+
+const superAdminItems = [
+    { to: '/admin/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+    { to: '/admin/companies', label: 'Companies', icon: <Building2 size={20} /> },
+    { to: '/admin/company-admins', label: 'Company Admins', icon: <UserCog size={20} /> },
+    { to: '/admin/analytics', label: 'Analytics', icon: <LineChart size={20} /> },
 ];
 
-const adminItems = [
-    { to: '/admin', label: 'Dashboard Overview', icon: <LayoutDashboard size={20} /> },
-    { to: '/admin/wizard', label: 'New Program Wizard', icon: <Sparkles size={20} /> },
-    { to: '/admin/programs', label: 'Programs', icon: <BookOpen size={20} /> },
-    { to: '/admin/practices', label: 'Manage Practices', icon: <Database size={20} /> },
-    { to: '/admin/surveys', label: 'Survey Scheduler', icon: <Settings size={20} /> },
-    { to: '/admin/reports', label: 'Reports', icon: <BarChart size={20} /> },
-    { to: '/admin/participants', label: 'Participants List', icon: <Users size={20} /> },
+const companyAdminItems = [
+    { to: '/company/dashboard', label: 'Dashboard Overview', icon: <LayoutDashboard size={20} /> },
+    { to: '/company/wizard', label: 'New Program Wizard', icon: <Sparkles size={20} /> },
+    { to: '/company/programs', label: 'Programs', icon: <BookOpen size={20} /> },
+    { to: '/company/practices', label: 'Manage Practices', icon: <Database size={20} /> },
+    { to: '/company/surveys', label: 'Survey Scheduler', icon: <Settings size={20} /> },
+    { to: '/company/reports', label: 'Reports', icon: <BarChart size={20} /> },
+    { to: '/company/participants', label: 'Participants List', icon: <Users size={20} /> },
 ];
+
+const participantItems = [
+    { to: '/participant/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+    { to: '/participant/pledge', label: 'Sign Pledge', icon: <PenTool size={20} /> },
+    { to: '/participant/pledges', label: 'My Pledges', icon: <ClipboardList size={20} /> },
+    { to: '/participant/surveys', label: 'My Surveys', icon: <CheckCircle size={20} /> },
+];
+
+// ── Role badge labels ─────────────────────────────────────────────────────────
+
+const roleBadge = {
+    super_admin: { label: 'Super Admin', classes: 'bg-purple-100/60 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800' },
+    company_admin: { label: 'Company Admin', classes: 'bg-amber-100/60 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800' },
+    admin: { label: 'Admin', classes: 'bg-amber-100/60 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800' },
+    participant: { label: 'Participant', classes: 'bg-blue-100/60 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800' },
+};
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 const Sidebar = ({ open, onClose }) => {
-    const { user, logout, isAdmin } = useAuth();
+    const { user, logout, isSuperAdmin, isCompanyAdmin } = useAuth();
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -28,7 +52,13 @@ const Sidebar = ({ open, onClose }) => {
         navigate('/login');
     };
 
-    const allItems = isAdmin ? [...navItems, ...adminItems] : navItems;
+    const navItems = isSuperAdmin
+        ? superAdminItems
+        : isCompanyAdmin
+            ? companyAdminItems
+            : participantItems;
+
+    const badge = roleBadge[user?.role] ?? roleBadge.participant;
 
     return (
         <>
@@ -47,6 +77,7 @@ const Sidebar = ({ open, onClose }) => {
         ${open ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0 lg:static lg:z-auto
       `} style={{ backgroundColor: 'var(--bg-surface)', borderRight: '1px solid var(--border-color)' }}>
+
                 {/* Logo */}
                 <div className="flex items-center gap-3 px-6 py-6 border-b" style={{ borderColor: 'var(--border-color)' }}>
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white shadow-lg">
@@ -73,20 +104,19 @@ const Sidebar = ({ open, onClose }) => {
                             <p className="text-xs truncate" style={{ color: 'var(--text-tertiary)' }}>{user?.email}</p>
                         </div>
                     </div>
-                    {isAdmin && (
-                        <span className="mt-2 inline-block px-2 py-0.5 bg-amber-100/50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-xs rounded-full font-semibold border border-amber-200 dark:border-amber-800">
-                            Admin
-                        </span>
-                    )}
+                    <span className={`mt-2 inline-block px-2 py-0.5 text-xs rounded-full font-semibold border ${badge.classes}`}>
+                        {badge.label}
+                    </span>
                 </div>
 
                 {/* Navigation */}
                 <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-                    {allItems.map(({ to, label, icon }) => (
+                    {navItems.map(({ to, label, icon }) => (
                         <NavLink
                             key={to}
                             to={to}
                             onClick={onClose}
+                            end={to.endsWith('/dashboard')}
                             className={({ isActive }) =>
                                 `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 
                 ${isActive

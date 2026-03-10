@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
-const { requestOTP, verifyOTP, getMe, logout } = require('../controllers/authController');
+const { register, login, getMe, logout } = require('../controllers/authController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 
 const authLimiter = rateLimit({
@@ -10,8 +10,8 @@ const authLimiter = rateLimit({
     message: { success: false, message: 'Too many requests, please try again later.' },
 });
 
-router.post('/send-otp', authLimiter, requestOTP);
-router.post('/verify-otp', authLimiter, verifyOTP);
+router.post('/register', authLimiter, register);
+router.post('/login', authLimiter, login);
 router.get('/me', authMiddleware, getMe);
 router.post('/logout', logout);
 

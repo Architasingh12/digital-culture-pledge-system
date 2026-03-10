@@ -17,7 +17,8 @@ axiosInstance.interceptors.response.use(
         if (error.response?.status === 401) {
             // Note: with contexts we should probably redirect properly or emit an event,
             // but this helps as a catch-all back-stop if the session expires completely.
-            if (window.location.pathname !== '/login' && window.location.pathname !== '/verify-otp') {
+            const loginPaths = ['/login', '/register', '/admin/login', '/company/login', '/participant/login'];
+            if (!loginPaths.includes(window.location.pathname)) {
                 window.location.href = '/login';
             }
         }

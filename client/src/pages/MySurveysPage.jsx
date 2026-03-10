@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import { ClipboardCheck, CalendarClock, Inbox, ArrowRight, Clock, CheckCircle2 } from 'lucide-react';
 
 const containerVariants = {

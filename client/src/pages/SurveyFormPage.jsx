@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axiosInstance from '../api/axiosInstance';
+// eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
 import { CalendarClock, CheckCircle, CheckCircle2, ChevronRight, Send, AlertTriangle, MessageSquareText, TrendingUp, HelpCircle } from 'lucide-react';
 
@@ -46,28 +47,27 @@ const SurveyFormPage = () => {
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
+        const loadSurvey = async () => {
+            try {
+                const res = await axiosInstance.get('/surveys/instances/' + id);
+                setInstance(res.data.instance);
+                setPractices(res.data.practices || []);
+                const existingMap = {};
+                for (const r of (res.data.responses || [])) {
+                    existingMap[r.practice_id] = {
+                        action_taken_level: r.action_taken_level || '',
+                        action_needed_next: r.action_needed_next || '',
+                    };
+                }
+                setResponses(existingMap);
+            } catch {
+                toast.error('Failed to load survey.');
+            } finally {
+                setLoading(false);
+            }
+        };
         loadSurvey();
     }, [id]);
-
-    const loadSurvey = async () => {
-        try {
-            const res = await axiosInstance.get('/surveys/instances/' + id);
-            setInstance(res.data.instance);
-            setPractices(res.data.practices || []);
-            const existingMap = {};
-            for (const r of (res.data.responses || [])) {
-                existingMap[r.practice_id] = {
-                    action_taken_level: r.action_taken_level || '',
-                    action_needed_next: r.action_needed_next || '',
-                };
-            }
-            setResponses(existingMap);
-        } catch {
-            toast.error('Failed to load survey.');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const setResponse = (practiceId, field, value) => {
         setResponses(prev => ({

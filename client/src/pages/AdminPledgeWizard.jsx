@@ -2,18 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axiosInstance from '../api/axiosInstance';
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Target, Calendar, Settings, Plus, X, ChevronRight, Check, Activity, BarChart, ArrowRight } from 'lucide-react';
 
-const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
-};
 
-const itemVariants = {
-    hidden: { opacity: 0, y: 15 },
-    visible: { opacity: 1, y: 0 }
-};
 
 // ─── Helper: Single Practice Card ───────────────────────────────────────────
 const PracticeCard = ({ practice, index, onChange, onRemove }) => {
@@ -31,7 +24,12 @@ const PracticeCard = ({ practice, index, onChange, onRemove }) => {
     };
 
     return (
-        <motion.div variants={itemVariants} layout className="rounded-2xl border shadow-sm overflow-hidden bg-white dark:bg-slate-900/50" style={{ borderColor: 'var(--border-color)' }}>
+        <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            layout
+            className="rounded-2xl border shadow-sm overflow-hidden bg-white dark:bg-slate-900/50" style={{ borderColor: 'var(--border-color)' }}>
             <div className="flex items-center justify-between p-4 bg-slate-50/50 dark:bg-slate-800/20 border-b" style={{ borderColor: 'var(--border-color)' }}>
                 <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>Practice Template {index + 1}</span>
                 <button onClick={() => onRemove(index)} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-xs font-bold transition-colors flex items-center gap-1">
@@ -103,7 +101,7 @@ const PracticeCard = ({ practice, index, onChange, onRemove }) => {
                     </div>
                 </div>
             </div>
-        </motion.div>
+        </motion.div >
     );
 };
 
@@ -143,11 +141,11 @@ const PracticesStep = ({ type, practices, setPractices }) => {
                 </div>
             </div>
 
-            <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
+            <div className="space-y-6">
                 {practices.map((p, i) => (
                     <PracticeCard key={i} practice={p} index={i} onChange={handleChange} onRemove={handleRemove} />
                 ))}
-            </motion.div>
+            </div>
 
             <button
                 onClick={addPractice}
@@ -271,14 +269,14 @@ const AdminPledgeWizard = () => {
                         return (
                             <div key={step.number} className="flex flex-col items-center gap-2">
                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border-2 transition-all duration-300 ${isCurrent ? 'bg-blue-600 border-blue-600 text-white shadow-blue-900/30 scale-110' :
-                                        isPast ? 'bg-emerald-500 border-emerald-500 text-white scale-100' :
-                                            'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-400 scale-100'
+                                    isPast ? 'bg-emerald-500 border-emerald-500 text-white scale-100' :
+                                        'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-400 scale-100'
                                     }`}>
                                     {isPast ? <Check className="w-5 h-5" strokeWidth={3} /> : step.icon}
                                 </div>
                                 <span className={`text-[10px] font-black uppercase tracking-widest absolute -bottom-6 whitespace-nowrap transition-colors ${isCurrent ? 'text-blue-600 dark:text-blue-400' :
-                                        isPast ? 'text-slate-700 dark:text-slate-300' :
-                                            'text-slate-400 dark:text-slate-600'
+                                    isPast ? 'text-slate-700 dark:text-slate-300' :
+                                        'text-slate-400 dark:text-slate-600'
                                     }`}>
                                     {step.label}
                                 </span>
@@ -348,40 +346,6 @@ const AdminPledgeWizard = () => {
                                     </div>
                                 </div>
 
-                                {/* Admin Config */}
-                                <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-2xl p-6 mt-4 shadow-sm">
-                                    <h3 className="text-sm font-black text-amber-900 dark:text-amber-400 mb-4 flex items-center gap-2">
-                                        <Settings className="w-4 h-4" /> Participation Constraints
-                                    </h3>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block text-[10px] font-black uppercase tracking-widest mb-2 text-amber-800 dark:text-amber-500">Max System Practices</label>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                max="20"
-                                                value={program.max_practices}
-                                                onChange={e => setProgram({ ...program, max_practices: e.target.value })}
-                                                className="w-full border border-amber-300 dark:border-amber-700/50 bg-white dark:bg-slate-900/50 rounded-xl p-3.5 text-sm focus:ring-2 focus:ring-amber-500 outline-none font-black shadow-sm"
-                                                style={{ color: 'var(--text-primary)' }}
-                                            />
-                                            <p className="text-[10px] font-bold text-amber-700/70 dark:text-amber-500/70 mt-2 leading-snug">Limit how many predefined practices a user can adopt per pledge.</p>
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-black uppercase tracking-widest mb-2 text-amber-800 dark:text-amber-500">Max Custom Behaviours</label>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                max="20"
-                                                value={program.max_behaviours}
-                                                onChange={e => setProgram({ ...program, max_behaviours: e.target.value })}
-                                                className="w-full border border-amber-300 dark:border-amber-700/50 bg-white dark:bg-slate-900/50 rounded-xl p-3.5 text-sm focus:ring-2 focus:ring-amber-500 outline-none font-black shadow-sm"
-                                                style={{ color: 'var(--text-primary)' }}
-                                            />
-                                            <p className="text-[10px] font-bold text-amber-700/70 dark:text-amber-500/70 mt-2 leading-snug">Cap the number of personalized habits a user can append.</p>
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
                         </motion.div>
                     )}

@@ -4,12 +4,13 @@ import toast from 'react-hot-toast';
 
 const AuthContext = createContext(null);
 
+const ADMIN_ROLES = ['admin', 'super_admin', 'company_admin'];
+
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Automatically fetch User session from the HTTP-Only cookie when app loads
         const checkSession = async () => {
             try {
                 const res = await axiosInstance.get('/auth/me');
@@ -17,33 +18,40 @@ export const AuthProvider = ({ children }) => {
                     setUser(res.data.user);
                 }
             } catch {
-                // Ignore 401s here, just means unauthenticated as expected
                 setUser(null);
             } finally {
                 setLoading(false);
             }
         };
-
         checkSession();
     }, []);
 
-    const login = (userData) => {
-        setUser(userData);
-    };
+    const login = (userData) => setUser(userData);
 
     const logout = async () => {
         try {
             await axiosInstance.post('/auth/logout');
             setUser(null);
-            // Let axios redirect if needed or handle it here
             window.location.href = '/login';
         } catch {
             toast.error('Error logging out');
         }
     };
 
+    const role = user?.role ?? null;
+
     return (
-        <AuthContext.Provider value={{ user, login, logout, loading, isAdmin: user?.role === 'admin' }}>
+        <AuthContext.Provider value={{
+            user,
+            login,
+            logout,
+            loading,
+            role,
+            isAdmin: ADMIN_ROLES.includes(role),
+            isSuperAdmin: role === 'super_admin',
+            isCompanyAdmin: role === 'company_admin' || role === 'admin',
+            isParticipant: role === 'participant',
+        }}>
             {children}
         </AuthContext.Provider>
     );

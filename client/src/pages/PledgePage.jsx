@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axiosInstance from '../api/axiosInstance';
 import { useAuth } from '../context/AuthContext';
+// eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
 import { Target, Star, Calendar, Clock, BookOpen, Repeat, TrendingUp, CheckCircle, Edit3, Type, ArrowRight, Save, Trash2, Plus } from 'lucide-react';
 
