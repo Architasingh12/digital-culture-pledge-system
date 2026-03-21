@@ -1,23 +1,45 @@
-const { Pool } = require('pg');
+// const mysql = require('mysql2/promise');
+// require('dotenv').config({ path: '../.env' });
+
+// const pool = mysql.createPool({
+//   host: process.env.DB_HOST || 'localhost',
+//   port: parseInt(process.env.DB_PORT) || 3306,
+//   database: process.env.DB_NAME || 'digital_pledge',
+//   user: process.env.DB_USER || 'root',
+//   password: process.env.DB_PASSWORD || '',
+//   waitForConnections: true,
+//   connectionLimit: 20,
+//   queueLimit: 0,
+//   timezone: '+00:00',
+// });
+
+// module.exports = pool;
+
+
+const mysql = require('mysql2');
 require('dotenv').config({ path: '../.env' });
 
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT) || 5432,
-  database: process.env.DB_NAME || 'digital_pledge',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+const pool = mysql.createPool({
+  host: '103.20.213.213',
+  port:  3306,
+  database:  'digital_pledge',
+  user:  'digital_pledge',
+  password: '_A_uLz5xZ8tit7qb',
+  waitForConnections: true,
+  connectionLimit: 20,
+  queueLimit: 0,
+  timezone: '+00:00'
 });
 
-pool.on('connect', () => {
-  console.log('✅ Connected to PostgreSQL database');
+// Test MySQL Connection
+pool.getConnection((err, connection) => {
+  if (err) {
+    console.error('❌ Database connection failed:', err.message);
+  } else {
+    console.log('✅ Database connected successfully!');
+    connection.release();
+  }
 });
 
-pool.on('error', (err) => {
-  console.error('❌ PostgreSQL pool error:', err.message);
-});
-
-module.exports = pool;
+// Export promise-based pool
+module.exports = pool.promise();

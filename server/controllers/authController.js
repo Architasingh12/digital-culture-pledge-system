@@ -21,27 +21,31 @@ const register = async (req, res) => {
     }
 
     try {
-        // Check if user already exists
-        const existing = await pool.query('SELECT id, password FROM users WHERE email = $1', [email.toLowerCase().trim()]);
+        // Check if user already exists with a password set
+        const [existing] = await pool.query('SELECT id, password FROM users WHERE email = ?', [email.toLowerCase().trim()]);
 
-        if (existing.rows.length > 0 && existing.rows[0].password) {
+        if (existing.length > 0 && existing[0].password) {
             return res.status(409).json({ success: false, message: 'An account with this email already exists.' });
         }
 
         const passwordHash = await bcrypt.hash(password, 12);
 
-        const result = await pool.query(
+        // Insert or update on duplicate email (for users pre-seeded without a password)
+        await pool.query(
             `INSERT INTO users (name, email, designation, password)
-             VALUES ($1, $2, $3, $4)
-             ON CONFLICT (email) DO UPDATE
-               SET name        = COALESCE(EXCLUDED.name, users.name),
-                   designation = COALESCE(EXCLUDED.designation, users.designation),
-                   password    = EXCLUDED.password
-             RETURNING id, name, email, designation, role, created_at`,
+             VALUES (?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+               name        = COALESCE(VALUES(name), name),
+               designation = COALESCE(VALUES(designation), designation),
+               password    = VALUES(password)`,
             [name.trim(), email.toLowerCase().trim(), designation?.trim() || '', passwordHash]
         );
 
-        const user = result.rows[0];
+        const [userRows] = await pool.query(
+            'SELECT id, name, email, designation, role, created_at FROM users WHERE email = ?',
+            [email.toLowerCase().trim()]
+        );
+        const user = userRows[0];
 
         return res.status(201).json({
             success: true,
@@ -63,16 +67,16 @@ const login = async (req, res) => {
     }
 
     try {
-        const result = await pool.query(
-            'SELECT id, name, email, designation, role, password FROM users WHERE email = $1',
+        const [rows] = await pool.query(
+            'SELECT id, name, email, designation, role, password FROM users WHERE email = ?',
             [email.toLowerCase().trim()]
         );
 
-        if (result.rows.length === 0) {
+        if (rows.length === 0) {
             return res.status(401).json({ success: false, message: 'Invalid email or password.' });
         }
 
-        const user = result.rows[0];
+        const user = rows[0];
 
         if (!user.password) {
             return res.status(401).json({ success: false, message: 'This account has no password set. Please contact your administrator.' });
@@ -84,11 +88,19 @@ const login = async (req, res) => {
         }
 
         // Issue JWT
-        const token = jwt.sign(
-            { id: user.id, email: user.email, name: user.name, role: user.role, designation: user.designation },
-            process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-        );
+      const token = jwt.sign(
+                    {
+                        id: user.id,
+                        email: user.email,
+                        name: user.name,
+                        role: user.role,
+                        designation: user.designation
+                    },
+                    'archita_digital_pledge_secure_2026_key',
+                    {
+                        expiresIn: '7d'
+                    }
+                    );
 
         // Set httpOnly cookie
         res.cookie('token', token, {
@@ -112,14 +124,14 @@ const login = async (req, res) => {
 // ─── GET /api/auth/me ─────────────────────────────────────────────────────────
 const getMe = async (req, res) => {
     try {
-        const result = await pool.query(
-            'SELECT id, name, email, designation, role, created_at FROM users WHERE id = $1',
+        const [rows] = await pool.query(
+            'SELECT id, name, email, designation, role, created_at FROM users WHERE id = ?',
             [req.user.id]
         );
-        if (result.rows.length === 0) {
+        if (rows.length === 0) {
             return res.status(404).json({ success: false, message: 'User not found.' });
         }
-        return res.status(200).json({ success: true, user: result.rows[0] });
+        return res.status(200).json({ success: true, user: rows[0] });
     } catch (error) {
         console.error('getMe error:', error);
         return res.status(500).json({ success: false, message: 'Server error.' });

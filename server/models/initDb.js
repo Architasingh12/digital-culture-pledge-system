@@ -1,91 +1,106 @@
 const pool = require('../config/db');
 
 const createTables = async () => {
-  const client = await pool.connect();
+  const conn = await pool.getConnection();
   try {
-    await client.query('BEGIN');
+    await conn.beginTransaction();
 
     console.log('🏗️  Ensuring database tables exist...');
 
     // 1. users
-    await client.query(`
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS users (
-          id SERIAL PRIMARY KEY,
+          id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
           name VARCHAR(255) NOT NULL,
           email VARCHAR(255) UNIQUE NOT NULL,
           designation VARCHAR(255),
           photo_url TEXT,
           password VARCHAR(255),
-          role VARCHAR(50) DEFAULT 'participant' CHECK (role IN ('participant', 'admin', 'super_admin', 'company_admin')),
+          role VARCHAR(50) DEFAULT 'participant',
           created_at TIMESTAMP DEFAULT NOW()
-      );
+      )
     `);
 
     // Safe migration: add password column if it doesn't exist
-    await client.query(`
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR(255);
-    `);
+    try {
+      await conn.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR(255)`);
+    } catch (e) { /* column may already exist */ }
 
-    // Safe migration: expand role CHECK constraint to include new roles
-    await client.query(`ALTER TABLE users ALTER COLUMN role TYPE VARCHAR(50)`);
-    await client.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`);
-    await client.query(`
-      ALTER TABLE users ADD CONSTRAINT users_role_check
-        CHECK (role IN ('participant', 'admin', 'super_admin', 'company_admin'));
-    `);
+    // Safe migration: ensure role column is wide enough and drop/re-add CHECK
+    try {
+      await conn.query(`ALTER TABLE users MODIFY COLUMN role VARCHAR(50) DEFAULT 'participant'`);
+    } catch (e) { /* ignore */ }
+    try {
+      await conn.query(`ALTER TABLE users DROP CHECK users_role_check`);
+    } catch (e) { /* constraint may not exist */ }
+    try {
+      await conn.query(`
+        ALTER TABLE users ADD CONSTRAINT users_role_check
+          CHECK (role IN ('participant', 'admin', 'super_admin', 'company_admin'))
+      `);
+    } catch (e) { /* ignore if already exists */ }
 
     // 2. otp_tokens
-    await client.query(`
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS otp_tokens (
-          id SERIAL PRIMARY KEY,
+          id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
           email VARCHAR(255) NOT NULL,
           otp_hash VARCHAR(255) NOT NULL,
           expires_at TIMESTAMP NOT NULL,
           used BOOLEAN DEFAULT false,
           created_at TIMESTAMP DEFAULT NOW()
-      );
+      )
     `);
 
     // 3. programs
-    await client.query(`
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS programs (
-          id SERIAL PRIMARY KEY,
+          id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
           title VARCHAR(255) NOT NULL,
           description TEXT,
           start_date DATE,
           end_date DATE,
-          max_practices INTEGER DEFAULT 3,
-          max_behaviours INTEGER DEFAULT 5,
-          created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
-          created_at TIMESTAMP DEFAULT NOW()
-      );
+          max_practices INT DEFAULT 3,
+          max_behaviours INT DEFAULT 5,
+          created_by INT,
+          created_at TIMESTAMP DEFAULT NOW(),
+          FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+      )
     `);
 
-    // Add new columns to programs if they don't exist (safe migration)
-    await client.query(`
-      ALTER TABLE programs
-        ADD COLUMN IF NOT EXISTS max_practices INTEGER DEFAULT 3,
-        ADD COLUMN IF NOT EXISTS max_behaviours INTEGER DEFAULT 5;
-    `);
+    // Safe migration: add new columns to programs if they don't exist
+    try {
+      await conn.query(`ALTER TABLE programs ADD COLUMN IF NOT EXISTS max_practices INT DEFAULT 3`);
+    } catch (e) { /* ignore */ }
+    try {
+      await conn.query(`ALTER TABLE programs ADD COLUMN IF NOT EXISTS max_behaviours INT DEFAULT 5`);
+    } catch (e) { /* ignore */ }
+    try {
+      await conn.query(`ALTER TABLE programs ADD COLUMN IF NOT EXISTS company_id INT`);
+    } catch (e) { /* ignore */ }
+    try {
+      await conn.query(`ALTER TABLE programs ADD CONSTRAINT fk_programs_company FOREIGN KEY (company_id) REFERENCES users(id) ON DELETE SET NULL`);
+    } catch (e) { /* ignore — FK may already exist */ }
 
     // 4. practices
-    await client.query(`
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS practices (
-          id SERIAL PRIMARY KEY,
-          program_id INTEGER REFERENCES programs(id) ON DELETE CASCADE,
-          type VARCHAR(50) CHECK (type IN ('weekly', 'monthly', 'quarterly', 'daily')),
+          id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+          program_id INT,
+          type VARCHAR(50),
           title VARCHAR(255) NOT NULL,
-          actions JSONB,
-          created_at TIMESTAMP DEFAULT NOW()
-      );
+          actions JSON,
+          created_at TIMESTAMP DEFAULT NOW(),
+          FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE
+      )
     `);
 
     // 5. pledges
-    await client.query(`
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS pledges (
-          id SERIAL PRIMARY KEY,
-          user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-          program_id INTEGER REFERENCES programs(id) ON DELETE CASCADE,
+          id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+          user_id INT,
+          program_id INT,
           problem_statement TEXT,
           north_star TEXT,
           success_metric TEXT,
@@ -93,131 +108,141 @@ const createTables = async () => {
           personal_habit TEXT,
           habit_frequency VARCHAR(255),
           measure_success TEXT,
-          submitted_at TIMESTAMP DEFAULT NOW()
-      );
+          review_dates TEXT,
+          signature_name VARCHAR(255),
+          signoff_designation VARCHAR(255),
+          user_photo TEXT,
+          digital_signature TEXT,
+          submission_date DATE,
+          submitted_at TIMESTAMP DEFAULT NOW(),
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE
+      )
     `);
 
-    // Safe migration: add problem_statement if not exists
-    await client.query(`
-      ALTER TABLE pledges ADD COLUMN IF NOT EXISTS problem_statement TEXT;
-    `);
-
-    // Safe migration: add Section E sign-off fields if not exists
-    await client.query(`
-      ALTER TABLE pledges ADD COLUMN IF NOT EXISTS review_dates TEXT;
-    `);
-    await client.query(`
-      ALTER TABLE pledges ADD COLUMN IF NOT EXISTS signature_name VARCHAR(255);
-    `);
-    await client.query(`
-      ALTER TABLE pledges ADD COLUMN IF NOT EXISTS signoff_designation VARCHAR(255);
-    `);
-    await client.query(`
-      ALTER TABLE pledges ADD COLUMN IF NOT EXISTS digital_signature TEXT;
-    `);
-    await client.query(`
-      ALTER TABLE pledges ADD COLUMN IF NOT EXISTS submission_date DATE;
-    `);
-
+    // Safe migrations for pledge columns
+    const pledgeCols = [
+      `ALTER TABLE pledges ADD COLUMN IF NOT EXISTS problem_statement TEXT`,
+      `ALTER TABLE pledges ADD COLUMN IF NOT EXISTS review_dates TEXT`,
+      `ALTER TABLE pledges ADD COLUMN IF NOT EXISTS signature_name VARCHAR(255)`,
+      `ALTER TABLE pledges ADD COLUMN IF NOT EXISTS signoff_designation VARCHAR(255)`,
+      `ALTER TABLE pledges ADD COLUMN IF NOT EXISTS user_photo TEXT`,
+      `ALTER TABLE pledges ADD COLUMN IF NOT EXISTS digital_signature TEXT`,
+      `ALTER TABLE pledges ADD COLUMN IF NOT EXISTS submission_date DATE`,
+    ];
+    for (const sql of pledgeCols) {
+      try { await conn.query(sql); } catch (e) { /* already exists */ }
+    }
 
     // 6. pledge_practices
-    await client.query(`
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS pledge_practices (
-          id SERIAL PRIMARY KEY,
-          pledge_id INTEGER REFERENCES pledges(id) ON DELETE CASCADE,
-          practice_id INTEGER REFERENCES practices(id) ON DELETE CASCADE,
+          id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+          pledge_id INT,
+          practice_id INT,
           selected_action TEXT,
-          UNIQUE(pledge_id, practice_id)
-      );
+          UNIQUE KEY unique_pledge_practice (pledge_id, practice_id),
+          FOREIGN KEY (pledge_id) REFERENCES pledges(id) ON DELETE CASCADE,
+          FOREIGN KEY (practice_id) REFERENCES practices(id) ON DELETE CASCADE
+      )
     `);
 
     // 7. behaviours
-    await client.query(`
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS behaviours (
-          id SERIAL PRIMARY KEY,
-          pledge_id INTEGER REFERENCES pledges(id) ON DELETE CASCADE,
+          id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+          pledge_id INT,
           behaviour_text TEXT NOT NULL,
-          type VARCHAR(50) CHECK (type IN ('start', 'reduce', 'stop')),
+          type VARCHAR(50),
           why_it_matters TEXT,
           first_action_date DATE,
           action_taken TEXT,
-          action_needed_next TEXT
-      );
+          action_needed_next TEXT,
+          FOREIGN KEY (pledge_id) REFERENCES pledges(id) ON DELETE CASCADE
+      )
     `);
 
     // 8. surveys
-    await client.query(`
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS surveys (
-          id SERIAL PRIMARY KEY,
-          pledge_id INTEGER REFERENCES pledges(id) ON DELETE CASCADE,
+          id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+          pledge_id INT,
           survey_date DATE NOT NULL,
-          created_at TIMESTAMP DEFAULT NOW()
-      );
+          created_at TIMESTAMP DEFAULT NOW(),
+          FOREIGN KEY (pledge_id) REFERENCES pledges(id) ON DELETE CASCADE
+      )
     `);
 
     // 9. survey_responses
-    await client.query(`
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS survey_responses (
-          id SERIAL PRIMARY KEY,
-          survey_id INTEGER REFERENCES surveys(id) ON DELETE CASCADE,
-          practice_id INTEGER REFERENCES practices(id) ON DELETE CASCADE,
-          action_taken_level VARCHAR(10) CHECK (action_taken_level IN ('H', 'M', 'L')),
+          id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+          survey_id INT,
+          practice_id INT,
+          action_taken_level VARCHAR(10),
           action_needed_next TEXT,
-          created_at TIMESTAMP DEFAULT NOW()
-      );
+          created_at TIMESTAMP DEFAULT NOW(),
+          FOREIGN KEY (survey_id) REFERENCES surveys(id) ON DELETE CASCADE,
+          FOREIGN KEY (practice_id) REFERENCES practices(id) ON DELETE CASCADE
+      )
     `);
 
-    // 10. survey_schedules (admin configures per program)
-    await client.query(`
+    // 10. survey_schedules
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS survey_schedules (
-          id SERIAL PRIMARY KEY,
-          program_id INTEGER REFERENCES programs(id) ON DELETE CASCADE,
+          id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+          program_id INT,
           label VARCHAR(255) NOT NULL,
-          interval_days INTEGER NOT NULL DEFAULT 30,
-          start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+          interval_days INT NOT NULL DEFAULT 30,
+          start_date DATE NOT NULL DEFAULT (CURRENT_DATE),
           next_due_date DATE,
           is_active BOOLEAN DEFAULT true,
-          created_at TIMESTAMP DEFAULT NOW()
-      );
+          created_at TIMESTAMP DEFAULT NOW(),
+          FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE
+      )
     `);
 
-    // 11. survey_instances (one per pledge per survey wave)
-    await client.query(`
+    // 11. survey_instances
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS survey_instances (
-          id SERIAL PRIMARY KEY,
-          schedule_id INTEGER REFERENCES survey_schedules(id) ON DELETE CASCADE,
-          pledge_id INTEGER REFERENCES pledges(id) ON DELETE CASCADE,
+          id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+          schedule_id INT,
+          pledge_id INT,
           due_date DATE NOT NULL,
-          completed_at TIMESTAMP,
-          created_at TIMESTAMP DEFAULT NOW()
-      );
+          completed_at TIMESTAMP NULL DEFAULT NULL,
+          created_at TIMESTAMP DEFAULT NOW(),
+          FOREIGN KEY (schedule_id) REFERENCES survey_schedules(id) ON DELETE CASCADE,
+          FOREIGN KEY (pledge_id) REFERENCES pledges(id) ON DELETE CASCADE
+      )
     `);
 
-    // 12. survey_instance_responses (per practice per survey instance)
-    await client.query(`
+    // 12. survey_instance_responses
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS survey_instance_responses (
-          id SERIAL PRIMARY KEY,
-          instance_id INTEGER REFERENCES survey_instances(id) ON DELETE CASCADE,
-          practice_id INTEGER REFERENCES practices(id) ON DELETE CASCADE,
-          action_taken_level VARCHAR(10) CHECK (action_taken_level IN ('H', 'M', 'L')),
+          id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+          instance_id INT,
+          practice_id INT,
+          action_taken_level VARCHAR(10),
           action_needed_next TEXT,
-          created_at TIMESTAMP DEFAULT NOW()
-      );
+          created_at TIMESTAMP DEFAULT NOW(),
+          FOREIGN KEY (instance_id) REFERENCES survey_instances(id) ON DELETE CASCADE,
+          FOREIGN KEY (practice_id) REFERENCES practices(id) ON DELETE CASCADE
+      )
     `);
 
-    // Safe migrations for survey_schedules
-    await client.query(`
-      ALTER TABLE survey_schedules ADD COLUMN IF NOT EXISTS next_due_date DATE;
-    `);
+    // Safe migration for survey_schedules
+    try {
+      await conn.query(`ALTER TABLE survey_schedules ADD COLUMN IF NOT EXISTS next_due_date DATE`);
+    } catch (e) { /* ignore */ }
 
-    await client.query('COMMIT');
+    await conn.commit();
     console.log('✅ Database tables ready');
   } catch (error) {
-    await client.query('ROLLBACK');
+    await conn.rollback();
     console.error('❌ Error initializing database tables:', error.message);
     throw error;
   } finally {
-    client.release();
+    conn.release();
   }
 };
 

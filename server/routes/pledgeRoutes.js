@@ -5,7 +5,8 @@ const {
     getMyPledges,
     getAllPledges,
     getPledgeById,
-    downloadCertificate
+    downloadCertificate,
+    getCertificateData,
 } = require('../controllers/pledgeController');
 const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
 
@@ -17,6 +18,7 @@ router.get('/my', authMiddleware, getMyPledges);
 router.get('/all', authMiddleware, adminMiddleware, getAllPledges);
 
 router.get('/:id', authMiddleware, getPledgeById);
-router.get('/:id/certificate', authMiddleware, downloadCertificate);
+// router.get('/:id/certificate', authMiddleware, downloadCertificate);
+router.get('/:id/certificate-data', authMiddleware, getCertificateData);
 
 module.exports = router;

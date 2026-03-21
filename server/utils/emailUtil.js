@@ -1,74 +1,211 @@
-const nodemailer = require('nodemailer');
-require('dotenv').config({ path: '../.env' });
+// const nodemailer = require('nodemailer');
+// require('dotenv').config({ path: '../.env' });
 
+// const EMAIL_HOST=smtp.gmail.com
+// const EMAIL_PORT=587
+// const EMAIL_SECURE=false
+// const EMAIL_USER=architasingh236@gmail.com
+// const EMAIL_PASS=dhvtxhvjcnjzxxri
+// const EMAIL_FROM="Digital Pledge System <architasingh236@gmail.com>"
+
+// const transporter = nodemailer.createTransport({
+//   host: EMAIL_HOST,
+//   port: EMAIL_PORT || 587,
+//   secure: EMAIL_SECURE === 'true',
+//   auth: {
+//     user: EMAIL_USER,
+//     pass: EMAIL_PASS,
+//   },
+// });
+
+// const sendOTP = async (email, otp, name = '') => {
+//   const mailOptions = {
+//     from: EMAIL_FROM,
+//     to: email,
+//     subject: '🔐 Your Digital Pledge System — Login OTP',
+//     html: `
+//       <!DOCTYPE html>
+//       <html>
+//       <body style="font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 0;">
+//         <div style="max-width: 500px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+//           <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); padding: 32px 40px; text-align: center;">
+//             <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.5px;">Digital Culture Pledge System</h1>
+//             <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 13px;">Secure Login Verification</p>
+//           </div>
+//           <div style="padding: 40px;">
+//             <p style="color: #374151; font-size: 16px; margin: 0 0 20px;">Hello <strong>${name || email}</strong>,</p>
+//             <p style="color: #6b7280; font-size: 14px; margin: 0 0 24px;">Use the following One-Time Password (OTP) to complete your login. This code expires in <strong>${process.env.OTP_EXPIRES_MINUTES || 10} minutes</strong>.</p>
+//             <div style="background: #f0f4ff; border: 2px dashed #2563eb; border-radius: 10px; padding: 24px; text-align: center; margin: 0 0 24px;">
+//               <span style="font-size: 42px; font-weight: 800; letter-spacing: 14px; color: #1e3a5f;">${otp}</span>
+//             </div>
+//             <p style="color: #ef4444; font-size: 13px; background: #fef2f2; padding: 12px 16px; border-radius: 8px; border-left: 4px solid #ef4444;">⚠️ Never share this OTP with anyone. Our team will never ask for it.</p>
+//           </div>
+//           <div style="background: #f9fafb; padding: 20px 40px; text-align: center; border-top: 1px solid #e5e7eb;">
+//             <p style="color: #9ca3af; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} Digital Culture Pledge System. All rights reserved.</p>
+//           </div>
+//         </div>
+//       </body>
+//       </html>
+//     `,
+//   };
+
+//   await transporter.sendMail(mailOptions);
+// };
+
+// const sendReminderEmail = async (email, name, pledgeCount) => {
+//   const mailOptions = {
+//     from: EMAIL_FROM,
+//     to: email,
+//     subject: '📋 Reminder: Complete Your Digital Culture Pledge',
+//     html: `
+//       <!DOCTYPE html>
+//       <html>
+//       <body style="font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 0;">
+//         <div style="max-width: 500px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+//           <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); padding: 32px 40px; text-align: center;">
+//             <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 700;">Digital Culture Pledge System</h1>
+//           </div>
+//           <div style="padding: 40px;">
+//             <p style="color: #374151; font-size: 16px; margin: 0 0 20px;">Hello <strong>${name}</strong>,</p>
+//             <p style="color: #6b7280; font-size: 14px; margin: 0 0 20px;">This is a friendly reminder that you have <strong>${pledgeCount} pending pledge(s)</strong> awaiting review. Please log in to check the status.</p>
+//             <a href="${process.env.CLIENT_URL}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px;">View My Pledges →</a>
+//           </div>
+//           <div style="background: #f9fafb; padding: 20px 40px; text-align: center; border-top: 1px solid #e5e7eb;">
+//             <p style="color: #9ca3af; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} Digital Culture Pledge System</p>
+//           </div>
+//         </div>
+//       </body>
+//       </html>
+//     `,
+//   };
+
+//   await transporter.sendMail(mailOptions);
+// };
+
+
+// const sendSurveyEmail = async (email, name, surveyUrl, scheduleLabel) => {
+//   const mailOptions = {
+//     from: EMAIL_FROM,
+//     to: email,
+//     subject: '📊 Time to Review: Your Digital Culture Survey is Ready',
+//     html: `
+//       <!DOCTYPE html>
+//       <html>
+//       <body style="font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 0;">
+//         <div style="max-width: 500px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+//           <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); padding: 32px 40px; text-align: center;">
+//             <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 700;">Digital Culture Pledge System</h1>
+//             <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 13px;">Practice Progress Survey</p>
+//           </div>
+//           <div style="padding: 40px;">
+//             <p style="color: #374151; font-size: 16px; margin: 0 0 16px;">Hello <strong>${name}</strong>,</p>
+//             <p style="color: #6b7280; font-size: 14px; margin: 0 0 20px;">
+//               It's time for your <strong>${scheduleLabel || 'periodic survey'}</strong>! 
+//               Please take a moment to review your progress on each practice commitment.
+//             </p>
+//             <div style="background: #f0f4ff; border-radius: 10px; padding: 20px; margin-bottom: 24px;">
+//               <p style="color: #1e3a5f; font-weight: 600; margin: 0 0 8px; font-size: 14px;">📋 For each practice, you'll rate:</p>
+//               <ul style="color: #374151; font-size: 13px; margin: 0; padding-left: 20px; line-height: 1.7;">
+//                 <li><strong>H (High)</strong> — Consistently applied</li>
+//                 <li><strong>M (Medium)</strong> — Partially applied</li>
+//                 <li><strong>L (Low)</strong> — Not yet applied</li>
+//               </ul>
+//             </div>
+//             <a href="${surveyUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px;">Complete Survey →</a>
+//           </div>
+//           <div style="background: #f9fafb; padding: 20px 40px; text-align: center; border-top: 1px solid #e5e7eb;">
+//             <p style="color: #9ca3af; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} Digital Culture Pledge System. All rights reserved.</p>
+//           </div>
+//         </div>
+//       </body>
+//       </html>
+//     `,
+//   };
+//   await transporter.sendMail(mailOptions);
+// };
+
+// module.exports = { sendOTP, sendReminderEmail, sendSurveyEmail };
+
+
+const nodemailer = require('nodemailer');
+
+// Hardcoded Email Configuration
+const EMAIL_HOST = "smtp.gmail.com";
+const EMAIL_PORT = 587;
+const EMAIL_SECURE = false;
+const EMAIL_USER = "architasingh236@gmail.com";
+const EMAIL_PASS = "dhvtxhvjcnjzxxri";
+const EMAIL_FROM = "Digital Pledge System <architasingh236@gmail.com>";
+
+// Create transporter
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: parseInt(process.env.EMAIL_PORT) || 587,
-  secure: process.env.EMAIL_SECURE === 'true',
+  host: EMAIL_HOST,
+  port: EMAIL_PORT,
+  secure: EMAIL_SECURE,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: EMAIL_USER,
+    pass: EMAIL_PASS,
   },
 });
 
-const sendOTP = async (email, otp, name = '') => {
+/* ===========================
+   SEND OTP EMAIL
+=========================== */
+const sendOTP = async (email, otp, name = "") => {
   const mailOptions = {
-    from: process.env.EMAIL_FROM,
+    from: EMAIL_FROM,
     to: email,
-    subject: '🔐 Your Digital Pledge System — Login OTP',
+    subject: "🔐 Your Digital Pledge System — Login OTP",
     html: `
-      <!DOCTYPE html>
-      <html>
-      <body style="font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 0;">
-        <div style="max-width: 500px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
-          <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); padding: 32px 40px; text-align: center;">
-            <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.5px;">Digital Culture Pledge System</h1>
-            <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 13px;">Secure Login Verification</p>
+    <html>
+      <body style="font-family: Arial; background:#f4f6f9; padding:20px;">
+        <div style="max-width:500px;margin:auto;background:#fff;padding:30px;border-radius:10px;">
+          <h2 style="color:#2563eb;">Digital Culture Pledge System</h2>
+
+          <p>Hello <b>${name || email}</b>,</p>
+
+          <p>Your login OTP is:</p>
+
+          <div style="font-size:36px;font-weight:bold;letter-spacing:8px;
+          background:#f0f4ff;padding:15px;text-align:center;border-radius:8px;">
+            ${otp}
           </div>
-          <div style="padding: 40px;">
-            <p style="color: #374151; font-size: 16px; margin: 0 0 20px;">Hello <strong>${name || email}</strong>,</p>
-            <p style="color: #6b7280; font-size: 14px; margin: 0 0 24px;">Use the following One-Time Password (OTP) to complete your login. This code expires in <strong>${process.env.OTP_EXPIRES_MINUTES || 10} minutes</strong>.</p>
-            <div style="background: #f0f4ff; border: 2px dashed #2563eb; border-radius: 10px; padding: 24px; text-align: center; margin: 0 0 24px;">
-              <span style="font-size: 42px; font-weight: 800; letter-spacing: 14px; color: #1e3a5f;">${otp}</span>
-            </div>
-            <p style="color: #ef4444; font-size: 13px; background: #fef2f2; padding: 12px 16px; border-radius: 8px; border-left: 4px solid #ef4444;">⚠️ Never share this OTP with anyone. Our team will never ask for it.</p>
-          </div>
-          <div style="background: #f9fafb; padding: 20px 40px; text-align: center; border-top: 1px solid #e5e7eb;">
-            <p style="color: #9ca3af; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} Digital Culture Pledge System. All rights reserved.</p>
-          </div>
+
+          <p style="margin-top:20px;color:red;">
+            ⚠️ Do not share this OTP with anyone.
+          </p>
+
+          <p style="font-size:12px;color:#999;">
+            © ${new Date().getFullYear()} Digital Culture Pledge System
+          </p>
         </div>
       </body>
-      </html>
+    </html>
     `,
   };
 
   await transporter.sendMail(mailOptions);
 };
 
+
+/* ===========================
+   REMINDER EMAIL
+=========================== */
 const sendReminderEmail = async (email, name, pledgeCount) => {
   const mailOptions = {
-    from: process.env.EMAIL_FROM,
+    from: EMAIL_FROM,
     to: email,
-    subject: '📋 Reminder: Complete Your Digital Culture Pledge',
+    subject: "📋 Reminder: Complete Your Digital Culture Pledge",
     html: `
-      <!DOCTYPE html>
-      <html>
-      <body style="font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 0;">
-        <div style="max-width: 500px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
-          <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); padding: 32px 40px; text-align: center;">
-            <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 700;">Digital Culture Pledge System</h1>
-          </div>
-          <div style="padding: 40px;">
-            <p style="color: #374151; font-size: 16px; margin: 0 0 20px;">Hello <strong>${name}</strong>,</p>
-            <p style="color: #6b7280; font-size: 14px; margin: 0 0 20px;">This is a friendly reminder that you have <strong>${pledgeCount} pending pledge(s)</strong> awaiting review. Please log in to check the status.</p>
-            <a href="${process.env.CLIENT_URL}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px;">View My Pledges →</a>
-          </div>
-          <div style="background: #f9fafb; padding: 20px 40px; text-align: center; border-top: 1px solid #e5e7eb;">
-            <p style="color: #9ca3af; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} Digital Culture Pledge System</p>
-          </div>
-        </div>
-      </body>
-      </html>
+      <h2>Hello ${name}</h2>
+      <p>You have <b>${pledgeCount}</b> pending pledge(s).</p>
+      <p>Please log in and review them.</p>
+
+      <a href="http://localhost:5173"
+         style="background:#2563eb;color:white;padding:10px 20px;
+         text-decoration:none;border-radius:6px;">
+         View My Pledges
+      </a>
     `,
   };
 
@@ -76,46 +213,41 @@ const sendReminderEmail = async (email, name, pledgeCount) => {
 };
 
 
+/* ===========================
+   SURVEY EMAIL
+=========================== */
 const sendSurveyEmail = async (email, name, surveyUrl, scheduleLabel) => {
   const mailOptions = {
-    from: process.env.EMAIL_FROM,
+    from: EMAIL_FROM,
     to: email,
-    subject: '📊 Time to Review: Your Digital Culture Survey is Ready',
+    subject: "📊 Time to Review: Your Digital Culture Survey is Ready",
     html: `
-      <!DOCTYPE html>
-      <html>
-      <body style="font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 0;">
-        <div style="max-width: 500px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
-          <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); padding: 32px 40px; text-align: center;">
-            <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 700;">Digital Culture Pledge System</h1>
-            <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 13px;">Practice Progress Survey</p>
-          </div>
-          <div style="padding: 40px;">
-            <p style="color: #374151; font-size: 16px; margin: 0 0 16px;">Hello <strong>${name}</strong>,</p>
-            <p style="color: #6b7280; font-size: 14px; margin: 0 0 20px;">
-              It's time for your <strong>${scheduleLabel || 'periodic survey'}</strong>! 
-              Please take a moment to review your progress on each practice commitment.
-            </p>
-            <div style="background: #f0f4ff; border-radius: 10px; padding: 20px; margin-bottom: 24px;">
-              <p style="color: #1e3a5f; font-weight: 600; margin: 0 0 8px; font-size: 14px;">📋 For each practice, you'll rate:</p>
-              <ul style="color: #374151; font-size: 13px; margin: 0; padding-left: 20px; line-height: 1.7;">
-                <li><strong>H (High)</strong> — Consistently applied</li>
-                <li><strong>M (Medium)</strong> — Partially applied</li>
-                <li><strong>L (Low)</strong> — Not yet applied</li>
-              </ul>
-            </div>
-            <a href="${surveyUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px;">Complete Survey →</a>
-          </div>
-          <div style="background: #f9fafb; padding: 20px 40px; text-align: center; border-top: 1px solid #e5e7eb;">
-            <p style="color: #9ca3af; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} Digital Culture Pledge System. All rights reserved.</p>
-          </div>
-        </div>
-      </body>
-      </html>
+      <h2>Hello ${name}</h2>
+
+      <p>Your <b>${scheduleLabel || "practice progress survey"}</b> is ready.</p>
+
+      <p>Please review your progress for each practice.</p>
+
+      <ul>
+        <li><b>H</b> — High (Consistently applied)</li>
+        <li><b>M</b> — Medium (Partially applied)</li>
+        <li><b>L</b> — Low (Not applied)</li>
+      </ul>
+
+      <a href="${surveyUrl}"
+         style="background:#2563eb;color:white;padding:10px 20px;
+         text-decoration:none;border-radius:6px;">
+         Complete Survey
+      </a>
     `,
   };
+
   await transporter.sendMail(mailOptions);
 };
 
-module.exports = { sendOTP, sendReminderEmail, sendSurveyEmail };
 
+module.exports = {
+  sendOTP,
+  sendReminderEmail,
+  sendSurveyEmail,
+};

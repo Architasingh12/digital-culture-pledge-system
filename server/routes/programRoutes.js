@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { createProgram, getPrograms, getProgramById, updateProgram, deleteProgram } = require('../controllers/programController');
-const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
+const { authMiddleware, adminMiddleware, superAdminMiddleware } = require('../middleware/authMiddleware');
 
-router.get('/', authMiddleware, getPrograms);
-router.get('/:id', authMiddleware, getProgramById);
+// Any admin role can read programs
+router.get('/', authMiddleware, adminMiddleware, getPrograms);
+router.get('/:id', authMiddleware, adminMiddleware, getProgramById);
 
-// Admin only
-router.post('/', authMiddleware, adminMiddleware, createProgram);
-router.put('/:id', authMiddleware, adminMiddleware, updateProgram);
-router.delete('/:id', authMiddleware, adminMiddleware, deleteProgram);
+// Super Admin only: create, edit, delete
+router.post('/', authMiddleware, superAdminMiddleware, createProgram);
+router.put('/:id', authMiddleware, superAdminMiddleware, updateProgram);
+router.delete('/:id', authMiddleware, superAdminMiddleware, deleteProgram);
 
 module.exports = router;

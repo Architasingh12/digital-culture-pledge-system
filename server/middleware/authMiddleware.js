@@ -8,7 +8,7 @@ const authMiddleware = (req, res, next) => {
         if (!token) {
             return res.status(401).json({ success: false, message: 'Access denied. No token provided.' });
         }
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, 'archita_digital_pledge_secure_2026_key');
         req.user = decoded;
         next();
     } catch (error) {

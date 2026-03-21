@@ -9,13 +9,12 @@ const createPractice = async (req, res) => {
     }
 
     try {
-        // Expected actions format: ["Action 1", "Action 2", ...] -> stored as JSON array
-        const result = await pool.query(
-            `INSERT INTO practices (program_id, type, title, actions) 
-       VALUES ($1, $2, $3, $4) RETURNING *`,
+        const [result] = await pool.query(
+            `INSERT INTO practices (program_id, type, title, actions) VALUES (?, ?, ?, ?)`,
             [program_id, type, title, JSON.stringify(actions || [])]
         );
-        res.status(201).json({ success: true, practice: result.rows[0] });
+        const [rows] = await pool.query('SELECT * FROM practices WHERE id = ?', [result.insertId]);
+        res.status(201).json({ success: true, practice: rows[0] });
     } catch (error) {
         console.error('createPractice error', error);
         res.status(500).json({ success: false, message: 'Error creating practice' });
@@ -26,8 +25,8 @@ const createPractice = async (req, res) => {
 const getPracticesByProgram = async (req, res) => {
     const { program_id } = req.params;
     try {
-        const result = await pool.query('SELECT * FROM practices WHERE program_id = $1 ORDER BY id ASC', [program_id]);
-        res.status(200).json({ success: true, practices: result.rows });
+        const [rows] = await pool.query('SELECT * FROM practices WHERE program_id = ? ORDER BY id ASC', [program_id]);
+        res.status(200).json({ success: true, practices: rows });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Error fetching practices' });
     }
@@ -39,13 +38,13 @@ const updatePractice = async (req, res) => {
     const { type, title, actions } = req.body;
 
     try {
-        const result = await pool.query(
-            `UPDATE practices SET type=$1, title=$2, actions=$3 
-       WHERE id=$4 RETURNING *`,
+        const [result] = await pool.query(
+            `UPDATE practices SET type=?, title=?, actions=? WHERE id=?`,
             [type, title, JSON.stringify(actions || []), id]
         );
-        if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Practice not found' });
-        res.status(200).json({ success: true, practice: result.rows[0] });
+        if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Practice not found' });
+        const [rows] = await pool.query('SELECT * FROM practices WHERE id = ?', [id]);
+        res.status(200).json({ success: true, practice: rows[0] });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Error updating practice' });
     }
@@ -55,8 +54,8 @@ const updatePractice = async (req, res) => {
 const deletePractice = async (req, res) => {
     const { id } = req.params;
     try {
-        const result = await pool.query('DELETE FROM practices WHERE id = $1 RETURNING id', [id]);
-        if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Practice not found' });
+        const [result] = await pool.query('DELETE FROM practices WHERE id = ?', [id]);
+        if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Practice not found' });
         res.status(200).json({ success: true, message: 'Practice deleted' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Error deleting practice' });
