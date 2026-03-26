@@ -201,7 +201,7 @@ const sendReminderEmail = async (email, name, pledgeCount) => {
       <p>You have <b>${pledgeCount}</b> pending pledge(s).</p>
       <p>Please log in and review them.</p>
 
-      <a href="http://localhost:5173"
+      <a href="http://localhost:5173/participant/pledges"
          style="background:#2563eb;color:white;padding:10px 20px;
          text-decoration:none;border-radius:6px;">
          View My Pledges

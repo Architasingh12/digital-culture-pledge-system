@@ -4,8 +4,8 @@ const { createProgram, getPrograms, getProgramById, updateProgram, deleteProgram
 const { authMiddleware, adminMiddleware, superAdminMiddleware } = require('../middleware/authMiddleware');
 
 // Any admin role can read programs
-router.get('/', authMiddleware, adminMiddleware, getPrograms);
-router.get('/:id', authMiddleware, adminMiddleware, getProgramById);
+router.get('/', authMiddleware, getPrograms);
+router.get('/:id', authMiddleware, getProgramById);
 
 // Super Admin only: create, edit, delete
 router.post('/', authMiddleware, superAdminMiddleware, createProgram);

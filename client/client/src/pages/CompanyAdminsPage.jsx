@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { UserCog, PlusCircle, X, Shield, Mail, AlertCircle } from 'lucide-react';
+import { UserCog, PlusCircle, X, Shield, Mail, AlertCircle, Pencil, Trash2, Building2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import axiosInstance from '../api/axiosInstance';
@@ -8,18 +8,23 @@ const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{
 
 const CompanyAdminsPage = () => {
     const [admins, setAdmins] = useState([]);
+    const [companies, setCompanies] = useState([]); // for dropdown
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [editingAdmin, setEditingAdmin] = useState(null);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
-    const fetchAdmins = async () => {
+    const fetchData = async () => {
         try {
             setLoading(true);
-            const res = await axiosInstance.get('/admin/company-admins');
-            if (res.data.success) {
-                setAdmins(res.data.companyAdmins);
+            const adminsRes = await axiosInstance.get('/admin/company-admins');
+            if (adminsRes.data.success) {
+                setAdmins(adminsRes.data.companyAdmins);
+                setCompanies(adminsRes.data.companyAdmins); // use existing companies as dropdown options
             }
         } catch {
             toast.error('Failed to load company admins');
@@ -28,24 +33,60 @@ const CompanyAdminsPage = () => {
         }
     };
 
-    useEffect(() => {
-        fetchAdmins();
-    }, []);
+    useEffect(() => { fetchData(); }, []);
+
+    const openCreate = () => {
+        setEditingAdmin(null);
+        reset({ name: '', email: '', password: '', company_id: '' });
+        setIsModalOpen(true);
+    };
+
+    const openEdit = (admin) => {
+        setEditingAdmin(admin);
+        reset({ name: admin.name, email: admin.email, password: '', company_id: admin.company_id || '' });
+        setIsModalOpen(true);
+    };
 
     const onSubmit = async (data) => {
         setIsSubmitting(true);
         try {
-            const res = await axiosInstance.post('/admin/company-admins', data);
+            let res;
+            if (editingAdmin) {
+                res = await axiosInstance.put(`/admin/company-admins/${editingAdmin.id}`, {
+                    name: data.name,
+                    email: data.email,
+                    company_id: data.company_id || null,
+                });
+            } else {
+                res = await axiosInstance.post('/admin/company-admins', data);
+            }
             if (res.data.success) {
-                toast.success('Company Admin added successfully!');
+                toast.success(editingAdmin ? 'Admin updated!' : 'Company Admin added!');
                 setIsModalOpen(false);
                 reset();
-                fetchAdmins();
+                fetchData();
             }
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to add company admin');
+            toast.error(error.response?.data?.message || 'Failed to save company admin');
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!deleteTarget) return;
+        setIsDeleting(true);
+        try {
+            const res = await axiosInstance.delete(`/admin/company-admins/${deleteTarget.id}`);
+            if (res.data.success) {
+                toast.success('Admin deleted.');
+                setDeleteTarget(null);
+                fetchData();
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Failed to delete admin.');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -59,7 +100,7 @@ const CompanyAdminsPage = () => {
                     </p>
                 </div>
                 <button
-                    onClick={() => { reset(); setIsModalOpen(true); }}
+                    onClick={openCreate}
                     className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-blue-900/20 w-full sm:w-auto"
                 >
                     <PlusCircle size={16} /> Add Admin
@@ -98,6 +139,14 @@ const CompanyAdminsPage = () => {
                                         <Mail size={12} className="flex-shrink-0" />
                                         <span className="truncate">{admin.email}</span>
                                     </div>
+                                    {admin.company_id && (
+                                        <div className="flex items-center gap-1 mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                            <Building2 size={11} className="flex-shrink-0" />
+                                            <span className="truncate">
+                                                {companies.find(c => c.id === admin.company_id)?.name || `Company #${admin.company_id}`}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -106,29 +155,48 @@ const CompanyAdminsPage = () => {
                                     <Shield size={14} className="text-blue-500" />
                                     <span>Company Admin</span>
                                 </div>
-                                <span>Joined {new Date(admin.created_at).toLocaleDateString()}</span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => openEdit(admin)}
+                                        title="Edit"
+                                        className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 transition-colors"
+                                    >
+                                        <Pencil size={14} />
+                                    </button>
+                                    <button
+                                        onClick={() => setDeleteTarget(admin)}
+                                        title="Delete"
+                                        className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-500 transition-colors"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}
                 </div>
             )}
 
-            {/* Add Admin Modal */}
+            {/* Add / Edit Admin Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
                     <div className="relative w-full max-w-md rounded-2xl shadow-2xl overflow-hidden my-8" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}>
                         <div className="px-6 py-4 border-b flex justify-between items-center bg-slate-50 dark:bg-slate-900/50" style={{ borderColor: 'var(--border-color)' }}>
-                            <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Add New Admin</h3>
+                            <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>
+                                {editingAdmin ? 'Edit Admin' : 'Add New Admin'}
+                            </h3>
                             <button onClick={() => setIsModalOpen(false)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md transition-colors" style={{ color: 'var(--text-secondary)' }}>
                                 <X size={20} />
                             </button>
                         </div>
 
                         <form onSubmit={handleSubmit(onSubmit)} className="p-6">
-                            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/50 rounded-xl flex gap-3 text-sm text-blue-800 dark:text-blue-300">
-                                <AlertCircle className="flex-shrink-0 mt-0.5" size={16} />
-                                <p>You are creating a new <strong>Company Admin</strong> user account capable of managing their internal program operations.</p>
-                            </div>
+                            {!editingAdmin && (
+                                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/50 rounded-xl flex gap-3 text-sm text-blue-800 dark:text-blue-300">
+                                    <AlertCircle className="flex-shrink-0 mt-0.5" size={16} />
+                                    <p>You are creating a new <strong>Company Admin</strong> user account capable of managing their internal program operations.</p>
+                                </div>
+                            )}
 
                             <div className="space-y-4">
                                 <div>
@@ -157,19 +225,38 @@ const CompanyAdminsPage = () => {
                                     {errors.email && <p className="text-red-500 text-xs mt-1.5">{errors.email.message}</p>}
                                 </div>
 
+                                {!editingAdmin && (
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Admin Password</label>
+                                        <input
+                                            type="password"
+                                            {...register('password', {
+                                                required: 'Password is required',
+                                                validate: value => PASSWORD_REGEX.test(value) || 'Must contain at least 8 chars, 1 uppercase, 1 lowercase, 1 number, and 1 special char'
+                                            })}
+                                            className="w-full px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all bg-transparent"
+                                            style={{ borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
+                                            placeholder="••••••••"
+                                        />
+                                        {errors.password && <p className="text-red-500 text-xs mt-1.5 leading-tight">{errors.password.message}</p>}
+                                    </div>
+                                )}
+
+                                {/* Company Assignment Dropdown */}
                                 <div>
-                                    <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Admin Password</label>
-                                    <input
-                                        type="password"
-                                        {...register('password', {
-                                            required: 'Password is required',
-                                            validate: value => PASSWORD_REGEX.test(value) || 'Must contain at least 8 chars, 1 uppercase, 1 lowercase, 1 number, and 1 special char'
-                                        })}
+                                    <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                                        Assign to Company <span className="text-xs font-normal" style={{ color: 'var(--text-tertiary)' }}>(optional)</span>
+                                    </label>
+                                    <select
+                                        {...register('company_id')}
                                         className="w-full px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all bg-transparent"
                                         style={{ borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
-                                        placeholder="••••••••"
-                                    />
-                                    {errors.password && <p className="text-red-500 text-xs mt-1.5 leading-tight">{errors.password.message}</p>}
+                                    >
+                                        <option value="">— No assignment —</option>
+                                        {companies.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
 
@@ -177,11 +264,45 @@ const CompanyAdminsPage = () => {
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-xl border hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" style={{ borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}>
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto px-5 py-2 text-sm font-semibold rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition-all disabled:opacity-70 flex items-center justify-center min-w-[120px]">
-                                    {isSubmitting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : 'Create Admin'}
+                                <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto px-5 py-2 text-sm font-semibold rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition-all disabled:opacity-70 flex items-center justify-center min-w-[130px]">
+                                    {isSubmitting
+                                        ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        : editingAdmin ? 'Save Changes' : 'Create Admin'
+                                    }
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deleteTarget && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="w-full max-w-sm rounded-2xl shadow-2xl p-6" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}>
+                        <div className="w-12 h-12 rounded-xl bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center mb-4">
+                            <Trash2 size={22} className="text-rose-600" />
+                        </div>
+                        <h3 className="font-bold text-lg mb-2" style={{ color: 'var(--text-primary)' }}>Delete Admin?</h3>
+                        <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
+                            Are you sure you want to delete <strong>{deleteTarget.name}</strong>? This action cannot be undone.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setDeleteTarget(null)}
+                                className="flex-1 px-4 py-2 text-sm font-medium rounded-xl border hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                                style={{ borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDelete}
+                                disabled={isDeleting}
+                                className="flex-1 px-4 py-2 text-sm font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-all disabled:opacity-70 flex items-center justify-center"
+                            >
+                                {isDeleting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Delete'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

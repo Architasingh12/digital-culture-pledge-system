@@ -177,7 +177,6 @@ const AdminPledgeWizard = () => {
         title: '',
         description: '',
         start_date: '',
-        end_date: '',
         max_practices: 3,
         max_behaviours: 5,
         company_id: '',
@@ -355,27 +354,15 @@ const AdminPledgeWizard = () => {
                                     />
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                                    <div>
-                                        <label className="block text-[11px] font-black uppercase tracking-widest mb-2" style={{ color: 'var(--text-secondary)' }}>Commencement Date</label>
-                                        <input
-                                            type="date"
-                                            value={program.start_date}
-                                            onChange={e => setProgram({ ...program, start_date: e.target.value })}
-                                            className="w-full border rounded-xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-shadow bg-transparent shadow-sm"
-                                            style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[11px] font-black uppercase tracking-widest mb-2" style={{ color: 'var(--text-secondary)' }}>Conclusion Date</label>
-                                        <input
-                                            type="date"
-                                            value={program.end_date}
-                                            onChange={e => setProgram({ ...program, end_date: e.target.value })}
-                                            className="w-full border rounded-xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-shadow bg-transparent shadow-sm"
-                                            style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
-                                        />
-                                    </div>
+                                <div>
+                                    <label className="block text-[11px] font-black uppercase tracking-widest mb-2" style={{ color: 'var(--text-secondary)' }}>Commencement Date</label>
+                                    <input
+                                        type="date"
+                                        value={program.start_date}
+                                        onChange={e => setProgram({ ...program, start_date: e.target.value })}
+                                        className="w-full border rounded-xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-shadow bg-transparent shadow-sm"
+                                        style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                                    />
                                 </div>
 
                             </div>

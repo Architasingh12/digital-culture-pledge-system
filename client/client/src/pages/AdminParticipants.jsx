@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import axiosInstance from '../api/axiosInstance';
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Search, Target, RefreshCw } from 'lucide-react';
+import { Users, Search, Target, RefreshCw, UserPlus, X } from 'lucide-react';
 
 
 const itemVariants = {
@@ -39,6 +39,10 @@ const AdminParticipants = () => {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
 
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [addFormData, setAddFormData] = useState({ name: '', email: '', designation: '' });
+    const [adding, setAdding] = useState(false);
+
     const fetchPledges = async () => {
         setLoading(true);
         try {
@@ -54,6 +58,22 @@ const AdminParticipants = () => {
     useEffect(() => {
         fetchPledges();
     }, []);
+
+    const handleAddParticipant = async (e) => {
+        e.preventDefault();
+        setAdding(true);
+        try {
+            await axiosInstance.post('/company-admin/participants/add', addFormData);
+            toast.success('Participant added successfully!');
+            setShowAddModal(false);
+            setAddFormData({ name: '', email: '', designation: '' });
+            fetchPledges();
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Failed to add participant');
+        } finally {
+            setAdding(false);
+        }
+    };
 
     const filtered = pledges.filter(p =>
         (p.user_name || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -72,6 +92,9 @@ const AdminParticipants = () => {
                     <p className="mt-2 text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Review all commitments submitted by employees across different programs.</p>
                 </div>
                 <div className="flex gap-3 shrink-0">
+                    <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-bold transition-colors flex items-center gap-2 shadow-sm">
+                        <UserPlus className="w-4 h-4" /> Add Participant
+                    </button>
                     <button onClick={fetchPledges} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-sm font-bold transition-colors flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                         <RefreshCw className="w-4 h-4" /> Refresh
                     </button>
@@ -180,6 +203,93 @@ const AdminParticipants = () => {
                     Showing {filtered.length} of {pledges.length} pledges
                 </div>
             </motion.div>
+
+            {/* Add Participant Modal */}
+            <AnimatePresence>
+                {showAddModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0, y: 10 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                            className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl w-full max-w-md border dark:border-slate-800 overflow-hidden"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="px-6 py-5 border-b dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
+                                <h3 className="font-bold text-lg dark:text-white">Add New Participant</h3>
+                                <button
+                                    onClick={() => setShowAddModal(false)}
+                                    className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <form onSubmit={handleAddParticipant} className="p-6">
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 font-medium">
+                                    Pre-register a participant for your company. They will instantly be linked to your company and you can send them reminders!
+                                </p>
+                                
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Full Name</label>
+                                        <input
+                                            required
+                                            type="text"
+                                            value={addFormData.name}
+                                            onChange={e => setAddFormData(prev => ({ ...prev, name: e.target.value }))}
+                                            className="w-full border dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-slate-200"
+                                            placeholder="John Doe"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Email Address</label>
+                                        <input
+                                            required
+                                            type="email"
+                                            value={addFormData.email}
+                                            onChange={e => setAddFormData(prev => ({ ...prev, email: e.target.value }))}
+                                            className="w-full border dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-slate-200"
+                                            placeholder="john@company.com"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Designation <span className="text-slate-400 font-normal normal-case">(Optional)</span></label>
+                                        <input
+                                            type="text"
+                                            value={addFormData.designation}
+                                            onChange={e => setAddFormData(prev => ({ ...prev, designation: e.target.value }))}
+                                            className="w-full border dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-slate-200"
+                                            placeholder="e.g. Sales Manager"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="mt-8 flex gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAddModal(false)}
+                                        className="flex-1 px-4 py-2.5 rounded-xl border dark:border-slate-700 font-bold text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={adding}
+                                        className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm transition-colors shadow-sm disabled:opacity-50"
+                                    >
+                                        {adding ? 'Adding...' : 'Add Participant'}
+                                    </button>
+                                </div>
+                            </form>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

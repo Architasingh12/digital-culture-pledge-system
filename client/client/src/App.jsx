@@ -17,6 +17,8 @@ import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import CompaniesPage from './pages/CompaniesPage';
 import CompanyAdminsPage from './pages/CompanyAdminsPage';
 import AdminReports from './pages/AdminReports'; // reused as Analytics
+import CompanyStatusPage from './pages/CompanyStatusPage';
+import GlobalReportsPage from './pages/GlobalReportsPage';
 
 // Company Admin pages (existing, served at /company/* routes)
 import AdminDashboardOverview from './pages/AdminDashboardOverview';
@@ -25,6 +27,9 @@ import AdminPractices from './pages/AdminPractices';
 import AdminParticipants from './pages/AdminParticipants';
 import AdminSurveys from './pages/AdminSurveys';
 import AdminPledgeWizard from './pages/AdminPledgeWizard';
+import CompanyAdminStatusPage from './pages/CompanyAdminStatusPage';
+import CompanyAdminDownloadPage from './pages/CompanyAdminDownloadPage';
+import CompanyAdminRemindersPage from './pages/CompanyAdminRemindersPage';
 
 // Participant pages (existing, served at /participant/* routes)
 import DashboardPage from './pages/DashboardPage';
@@ -84,6 +89,8 @@ function App() {
               <Route path="/admin/wizard" element={<AdminPledgeWizard />} />
               <Route path="/admin/programs" element={<AdminPrograms />} />
               <Route path="/admin/analytics" element={<AdminReports />} />
+              <Route path="/admin/company-status" element={<CompanyStatusPage />} />
+              <Route path="/admin/global-reports" element={<GlobalReportsPage />} />
             </Route>
 
             {/* ── Company Admin routes ───────────────────────────── */}
@@ -97,6 +104,9 @@ function App() {
               <Route path="/company/surveys" element={<AdminSurveys />} />
               <Route path="/company/reports" element={<AdminReports />} />
               <Route path="/company/participants" element={<AdminParticipants />} />
+              <Route path="/company/status" element={<CompanyAdminStatusPage />} />
+              <Route path="/company/downloads" element={<CompanyAdminDownloadPage />} />
+              <Route path="/company/reminders" element={<CompanyAdminRemindersPage />} />
             </Route>
 
             {/* ── Participant routes ─────────────────────────────── */}

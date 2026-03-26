@@ -39,6 +39,13 @@ const createTables = async () => {
           CHECK (role IN ('participant', 'admin', 'super_admin', 'company_admin'))
       `);
     } catch (e) { /* ignore if already exists */ }
+    // Safe migration: add last_login and company_id columns if missing
+    try {
+      await conn.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP NULL DEFAULT NULL`);
+    } catch (e) { /* ignore */ }
+    try {
+      await conn.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INT NULL DEFAULT NULL`);
+    } catch (e) { /* ignore */ }
 
     // 2. otp_tokens
     await conn.query(`
@@ -234,6 +241,19 @@ const createTables = async () => {
     try {
       await conn.query(`ALTER TABLE survey_schedules ADD COLUMN IF NOT EXISTS next_due_date DATE`);
     } catch (e) { /* ignore */ }
+
+    // 13. company_reminders
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS company_reminders (
+          id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+          company_id INT NOT NULL,
+          audience VARCHAR(50) NOT NULL,
+          frequency VARCHAR(20) NOT NULL,
+          last_sent DATE NULL,
+          created_at TIMESTAMP DEFAULT NOW(),
+          FOREIGN KEY (company_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
 
     await conn.commit();
     console.log('✅ Database tables ready');

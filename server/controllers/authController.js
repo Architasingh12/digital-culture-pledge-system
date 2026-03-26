@@ -87,6 +87,9 @@ const login = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Invalid email or password.' });
         }
 
+        // Update last_login timestamp
+        await pool.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
+
         // Issue JWT
       const token = jwt.sign(
                     {

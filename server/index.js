@@ -12,6 +12,7 @@ const pledgeRoutes = require('./routes/pledgeRoutes');
 const programRoutes = require('./routes/programRoutes');
 const practiceRoutes = require('./routes/practiceRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const companyAdminRoutes = require('./routes/companyAdminRoutes');
 const surveyRoutes = require('./routes/surveyRoutes');
 
 const app = express();
@@ -40,6 +41,7 @@ app.use('/api/pledges', pledgeRoutes);
 app.use('/api/programs', programRoutes);
 app.use('/api/practices', practiceRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/company-admin', companyAdminRoutes);
 app.use('/api/surveys', surveyRoutes);
 
 // Health check

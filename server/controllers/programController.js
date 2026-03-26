@@ -2,14 +2,14 @@ const pool = require('../config/db');
 
 // POST /api/programs (Super Admin only)
 const createProgram = async (req, res) => {
-    const { title, description, start_date, end_date, company_id } = req.body;
+    const { title, description, start_date, company_id } = req.body;
     if (!title) return res.status(400).json({ success: false, message: 'Title is required' });
     if (!company_id) return res.status(400).json({ success: false, message: 'Company is required' });
 
     try {
         const [result] = await pool.query(
-            `INSERT INTO programs (title, description, start_date, end_date, company_id, created_by) VALUES (?, ?, ?, ?, ?, ?)`,
-            [title, description, start_date || null, end_date || null, company_id, req.user.id]
+            `INSERT INTO programs (title, description, start_date, company_id, created_by) VALUES (?, ?, ?, ?, ?)`,
+            [title, description, start_date || null, company_id, req.user.id]
         );
         const [rows] = await pool.query('SELECT * FROM programs WHERE id = ?', [result.insertId]);
         res.status(201).json({ success: true, program: rows[0] });
@@ -49,12 +49,12 @@ const getProgramById = async (req, res) => {
 // PUT /api/programs/:id (Super Admin only)
 const updateProgram = async (req, res) => {
     const { id } = req.params;
-    const { title, description, start_date, end_date, company_id } = req.body;
+    const { title, description, start_date, company_id } = req.body;
 
     try {
         const [result] = await pool.query(
-            `UPDATE programs SET title=?, description=?, start_date=?, end_date=?, company_id=? WHERE id=?`,
-            [title, description, start_date, end_date, company_id || null, id]
+            `UPDATE programs SET title=?, description=?, start_date=?, company_id=? WHERE id=?`,
+            [title, description, start_date, company_id || null, id]
         );
         if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Program not found' });
         const [rows] = await pool.query('SELECT * FROM programs WHERE id = ?', [id]);

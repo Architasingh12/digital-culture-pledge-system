@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import {
     LayoutDashboard, PenTool, ClipboardList, BarChart, Settings,
     Users, Sparkles, BookOpen, LogOut, FileText, CheckCircle,
-    Database, Building2, UserCog, LineChart,
+    Database, Building2, UserCog, LineChart, Activity, Globe, Download, Bell,
 } from 'lucide-react';
 
 // ── Menu definitions ──────────────────────────────────────────────────────────
@@ -15,6 +15,8 @@ const superAdminItems = [
     { to: '/admin/wizard', label: 'New Program Wizard', icon: <Sparkles size={20} /> },
     { to: '/admin/programs', label: 'Programs', icon: <BookOpen size={20} /> },
     { to: '/admin/analytics', label: 'Analytics', icon: <LineChart size={20} /> },
+    { to: '/admin/company-status', label: 'Company Status', icon: <Activity size={20} /> },
+    { to: '/admin/global-reports', label: 'Global Reports', icon: <Globe size={20} /> },
 ];
 
 const companyAdminItems = [
@@ -23,6 +25,9 @@ const companyAdminItems = [
     { to: '/company/surveys', label: 'Survey Scheduler', icon: <Settings size={20} /> },
     { to: '/company/reports', label: 'Reports', icon: <BarChart size={20} /> },
     { to: '/company/participants', label: 'Participants List', icon: <Users size={20} /> },
+    { to: '/company/status', label: 'Company Status', icon: <Activity size={20} /> },
+    { to: '/company/downloads', label: 'Company Download', icon: <Download size={20} /> },
+    { to: '/company/reminders', label: 'Reminders', icon: <Bell size={20} /> },
 ];
 
 const participantItems = [

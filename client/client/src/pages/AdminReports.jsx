@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import axiosInstance from '../api/axiosInstance';
 // eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
-import { Users, CalendarClock, CalendarDays, Award, Star, TrendingDown, TrendingUp, Target, Search, RefreshCw, FileSpreadsheet, FileText, ChevronUp, ChevronDown } from 'lucide-react';
+import { Users, CalendarClock, CalendarDays, Award, Star, TrendingDown, TrendingUp, Target, Search, RefreshCw, FileSpreadsheet, FileText, ChevronUp, ChevronDown, UserCheck, UserX, ClipboardList, Percent } from 'lucide-react';
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -59,6 +59,7 @@ const PieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name })
 // ─── Main Component ───────────────────────────────────────────────────────────
 const AdminReports = () => {
     const [data, setData] = useState(null);
+    const [globalStats, setGlobalStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [sortKey, setSortKey] = useState('name');
@@ -67,8 +68,12 @@ const AdminReports = () => {
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await axiosInstance.get('/admin/report');
-            setData(res.data);
+            const [reportRes, statsRes] = await Promise.all([
+                axiosInstance.get('/admin/report'),
+                axiosInstance.get('/admin/global-stats'),
+            ]);
+            setData(reportRes.data);
+            if (statsRes.data.success) setGlobalStats(statsRes.data.stats);
         } catch {
             toast.error('Failed to load report data.');
         } finally {
@@ -225,6 +230,22 @@ const AdminReports = () => {
                     </button>
                 </div>
             </motion.div>
+
+            {/* Global KPI Cards (new) */}
+            {globalStats && (
+                <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+                    <KpiCard icon={<Users className="w-5 h-5" />} label="Total Users" value={globalStats.totalUsers} theme="blue" sub="All roles, all companies" />
+                    <KpiCard icon={<ClipboardList className="w-5 h-5" />} label="Total Pledges Signed" value={globalStats.totalPledges} theme="indigo" sub="Across all programmes" />
+                    <KpiCard icon={<Percent className="w-5 h-5" />} label="Participation Rate" value={globalStats.participationPct + '%'} theme="emerald" sub="Participants who signed a pledge" />
+                    <KpiCard
+                        icon={<UserCheck className="w-5 h-5" />}
+                        label="Active vs Inactive"
+                        value={`${globalStats.activeUsers} / ${globalStats.inactiveUsers}`}
+                        theme="amber"
+                        sub="Active (30d) vs inactive users"
+                    />
+                </motion.div>
+            )}
 
             {/* KPI Cards */}
             <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">

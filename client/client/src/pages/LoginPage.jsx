@@ -26,6 +26,7 @@ const LoginPage = () => {
     const { register, handleSubmit, formState: { errors } } = useForm();
     const navigate = useNavigate();
     const { login } = useAuth();
+    
 
     const onSubmit = async (data) => {
         setLoading(true);

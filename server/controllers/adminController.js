@@ -39,7 +39,7 @@ const getDashboardStats = async (req, res) => {
 
 // POST /api/admin/create-program-with-practices
 const createProgramWithPractices = async (req, res) => {
-    const { title, description, start_date, end_date, max_practices, max_behaviours, practices, company_id } = req.body;
+    const { title, description, start_date, max_practices, max_behaviours, practices, company_id } = req.body;
     if (!title) return res.status(400).json({ success: false, message: 'Program title is required.' });
     if (!company_id) return res.status(400).json({ success: false, message: 'Company is required.' });
 
@@ -49,9 +49,9 @@ const createProgramWithPractices = async (req, res) => {
 
         // 1. Insert the program
         const [programResult] = await conn.query(
-            `INSERT INTO programs (title, description, start_date, end_date, max_practices, max_behaviours, company_id, created_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [title, description || '', start_date || null, end_date || null, max_practices || 3, max_behaviours || 5, company_id, req.user.id]
+            `INSERT INTO programs (title, description, start_date, max_practices, max_behaviours, company_id, created_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [title, description || '', start_date || null, max_practices || 3, max_behaviours || 5, company_id, req.user.id]
         );
         const [programRows] = await conn.query('SELECT * FROM programs WHERE id = ?', [programResult.insertId]);
         const program = programRows[0];
@@ -459,6 +459,405 @@ const getSuperAdminStats = async (req, res) => {
     }
 };
 
+// PUT /api/admin/company-admins/:id
+const updateCompanyAdmin = async (req, res) => {
+    const { id } = req.params;
+    const { name, email, company_id } = req.body;
+    if (!name || !email) {
+        return res.status(400).json({ success: false, message: 'Name and email are required.' });
+    }
+    try {
+        // Check duplicate email excluding current user
+        const [dup] = await pool.query('SELECT id FROM users WHERE email = ? AND id != ?', [email.toLowerCase().trim(), id]);
+        if (dup.length > 0) {
+            return res.status(409).json({ success: false, message: 'Email already in use by another account.' });
+        }
+        await pool.query(
+            'UPDATE users SET name = ?, email = ?, company_id = ? WHERE id = ? AND role = \'company_admin\'',
+            [name.trim(), email.toLowerCase().trim(), company_id || null, id]
+        );
+        const [rows] = await pool.query('SELECT id, name, email, role, company_id, created_at FROM users WHERE id = ?', [id]);
+        return res.status(200).json({ success: true, message: 'Company admin updated.', companyAdmin: rows[0] });
+    } catch (error) {
+        console.error('updateCompanyAdmin error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to update company admin.' });
+    }
+};
+
+// DELETE /api/admin/company-admins/:id
+const deleteCompanyAdmin = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [rows] = await pool.query("SELECT id FROM users WHERE id = ? AND role = 'company_admin'", [id]);
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Company admin not found.' });
+        }
+        await pool.query('DELETE FROM users WHERE id = ?', [id]);
+        return res.status(200).json({ success: true, message: 'Company admin deleted.' });
+    } catch (error) {
+        console.error('deleteCompanyAdmin error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to delete company admin.' });
+    }
+};
+
+// GET /api/admin/company-status
+const getCompanyStatus = async (req, res) => {
+    try {
+        // Fetch all company admins
+        const [companies] = await pool.query(
+            "SELECT id, name, email, created_at, last_login FROM users WHERE role = 'company_admin' ORDER BY name"
+        );
+
+        const result = [];
+        for (const co of companies) {
+            // Count participants linked to this company's programs
+            const [userRows] = await pool.query(
+                `SELECT COUNT(DISTINCT pl.user_id) AS total_users
+                 FROM pledges pl
+                 JOIN programs prog ON prog.id = pl.program_id
+                 WHERE prog.company_id = ?`,
+                [co.id]
+            );
+            // Total pledges
+            const [pledgeRows] = await pool.query(
+                `SELECT COUNT(pl.id) AS total_pledges
+                 FROM pledges pl
+                 JOIN programs prog ON prog.id = pl.program_id
+                 WHERE prog.company_id = ?`,
+                [co.id]
+            );
+            // Survey completions
+            const [surveyRows] = await pool.query(
+                `SELECT COUNT(si.id) AS survey_completions
+                 FROM survey_instances si
+                 JOIN pledges pl ON pl.id = si.pledge_id
+                 JOIN programs prog ON prog.id = pl.program_id
+                 WHERE prog.company_id = ? AND si.completed_at IS NOT NULL`,
+                [co.id]
+            );
+
+            const lastLogin = co.last_login || co.created_at;
+            const daysSinceLogin = lastLogin
+                ? Math.floor((Date.now() - new Date(lastLogin).getTime()) / (1000 * 60 * 60 * 24))
+                : 999;
+            const isActive = daysSinceLogin <= 30;
+
+            result.push({
+                id: co.id,
+                name: co.name,
+                email: co.email,
+                isActive,
+                lastLogin,
+                totalUsers: parseInt(userRows[0].total_users, 10) || 0,
+                totalPledges: parseInt(pledgeRows[0].total_pledges, 10) || 0,
+                surveyCompletions: parseInt(surveyRows[0].survey_completions, 10) || 0,
+            });
+        }
+
+        return res.status(200).json({ success: true, companies: result });
+    } catch (error) {
+        console.error('getCompanyStatus error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to fetch company status.' });
+    }
+};
+
+// GET /api/admin/global-stats
+const getGlobalStats = async (req, res) => {
+    try {
+        const [totalUsersRows] = await pool.query("SELECT COUNT(*) AS total FROM users WHERE role != 'super_admin'");
+        const [totalPledgesRows] = await pool.query('SELECT COUNT(*) AS total FROM pledges');
+        const [totalParticipantsRows] = await pool.query("SELECT COUNT(*) AS total FROM users WHERE role = 'participant'");
+        const [participantsWithPledgeRows] = await pool.query('SELECT COUNT(DISTINCT user_id) AS total FROM pledges');
+
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const [activeRows] = await pool.query(
+            "SELECT COUNT(*) AS total FROM users WHERE role != 'super_admin' AND last_login >= ?",
+            [thirtyDaysAgo]
+        );
+        const [inactiveRows] = await pool.query(
+            "SELECT COUNT(*) AS total FROM users WHERE role != 'super_admin' AND (last_login IS NULL OR last_login < ?)",
+            [thirtyDaysAgo]
+        );
+
+        const totalParticipants = parseInt(totalParticipantsRows[0].total, 10) || 0;
+        const withPledge = parseInt(participantsWithPledgeRows[0].total, 10) || 0;
+        const participationPct = totalParticipants > 0 ? Math.round((withPledge / totalParticipants) * 100) : 0;
+
+        return res.status(200).json({
+            success: true,
+            stats: {
+                totalUsers: parseInt(totalUsersRows[0].total, 10) || 0,
+                totalPledges: parseInt(totalPledgesRows[0].total, 10) || 0,
+                participationPct,
+                activeUsers: parseInt(activeRows[0].total, 10) || 0,
+                inactiveUsers: parseInt(inactiveRows[0].total, 10) || 0,
+            }
+        });
+    } catch (error) {
+        console.error('getGlobalStats error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to fetch global stats.' });
+    }
+};
+
+// GET /api/admin/global-reports/participants/csv
+const getParticipantsCSV = async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT u.name, u.email, u.designation, u.created_at,
+                   ca.name AS company_name,
+                   prog.title AS program_title,
+                   COUNT(DISTINCT pl.id) AS total_pledges,
+                   COUNT(DISTINCT CASE WHEN si.completed_at IS NOT NULL THEN si.id END) AS surveys_done
+            FROM users u
+            LEFT JOIN pledges pl ON pl.user_id = u.id
+            LEFT JOIN programs prog ON prog.id = pl.program_id
+            LEFT JOIN users ca ON ca.id = prog.company_id
+            LEFT JOIN survey_instances si ON si.pledge_id = pl.id
+            WHERE u.role = 'participant'
+            GROUP BY u.id, ca.name, prog.title
+            ORDER BY u.name
+        `);
+
+        const headers = ['Name', 'Email', 'Designation', 'Company', 'Program', 'Total Pledges', 'Surveys Completed', 'Joined'];
+        const csvRows = rows.map(r => [
+            r.name, r.email, r.designation || '',
+            r.company_name || '—', r.program_title || '—',
+            r.total_pledges, r.surveys_done,
+            new Date(r.created_at).toLocaleDateString()
+        ]);
+
+        const csv = [headers, ...csvRows].map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="participants-report.csv"');
+        return res.send(csv);
+    } catch (error) {
+        console.error('getParticipantsCSV error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to generate CSV.' });
+    }
+};
+
+// GET /api/admin/global-reports/pledges/csv
+const getPledgesCSV = async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT u.name, u.email,
+                   ca.name AS company_name,
+                   prog.title AS program_title,
+                   pl.north_star, pl.problem_statement, pl.submission_date,
+                   COUNT(DISTINCT pp.id) AS practices_chosen
+            FROM pledges pl
+            JOIN users u ON u.id = pl.user_id
+            LEFT JOIN programs prog ON prog.id = pl.program_id
+            LEFT JOIN users ca ON ca.id = prog.company_id
+            LEFT JOIN pledge_practices pp ON pp.pledge_id = pl.id
+            GROUP BY pl.id, ca.name
+            ORDER BY u.name
+        `);
+
+        const headers = ['Participant', 'Email', 'Company', 'Program', 'North Star', 'Problem Statement', 'Practices Chosen', 'Submission Date'];
+        const csvRows = rows.map(r => [
+            r.name, r.email, r.company_name || '—', r.program_title || '—',
+            r.north_star || '', r.problem_statement || '',
+            r.practices_chosen,
+            r.submission_date ? new Date(r.submission_date).toLocaleDateString() : '—'
+        ]);
+
+        const csv = [headers, ...csvRows].map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="pledges-report.csv"');
+        return res.send(csv);
+    } catch (error) {
+        console.error('getPledgesCSV error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to generate CSV.' });
+    }
+};
+
+// GET /api/admin/global-reports/surveys/csv
+const getSurveysCSV = async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT u.name, u.email,
+                   ca.name AS company_name,
+                   prog.title AS program_title,
+                   COUNT(DISTINCT si.id) AS total_surveys,
+                   COUNT(DISTINCT CASE WHEN si.completed_at IS NOT NULL THEN si.id END) AS completed_surveys,
+                   CASE
+                     WHEN COUNT(DISTINCT si.id) = 0 THEN 0
+                     ELSE ROUND(100 * COUNT(DISTINCT CASE WHEN si.completed_at IS NOT NULL THEN si.id END) / COUNT(DISTINCT si.id))
+                   END AS completion_pct
+            FROM pledges pl
+            JOIN users u ON u.id = pl.user_id
+            LEFT JOIN programs prog ON prog.id = pl.program_id
+            LEFT JOIN users ca ON ca.id = prog.company_id
+            LEFT JOIN survey_instances si ON si.pledge_id = pl.id
+            GROUP BY pl.id, ca.name
+            ORDER BY u.name
+        `);
+
+        const headers = ['Participant', 'Email', 'Company', 'Program', 'Total Surveys', 'Completed', 'Completion %'];
+        const csvRows = rows.map(r => [
+            r.name, r.email, r.company_name || '—', r.program_title || '—',
+            r.total_surveys, r.completed_surveys, r.completion_pct + '%'
+        ]);
+
+        const csv = [headers, ...csvRows].map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="surveys-report.csv"');
+        return res.send(csv);
+    } catch (error) {
+        console.error('getSurveysCSV error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to generate CSV.' });
+    }
+};
+
+// ── Shared helper: build PDF buffer from HTML string using puppeteer ──────────
+const buildPdfBuffer = async (html) => {
+    const puppeteer = require('puppeteer');
+    const browser = await puppeteer.launch({
+        headless: 'new',
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const buf = await page.pdf({ format: 'A4', landscape: true, printBackground: true, margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' } });
+    await browser.close();
+    return buf;
+};
+
+const tableHtml = (title, headers, rows) => `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #1e293b; padding: 24px; }
+  h1 { font-size: 18px; font-weight: 800; color: #1e3a5f; margin-bottom: 4px; }
+  .meta { font-size: 10px; color: #64748b; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #1e3a5f; color: #fff; font-size: 10px; font-weight: 700; text-align: left; padding: 8px 10px; letter-spacing: 0.5px; text-transform: uppercase; }
+  td { padding: 7px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  tr:hover td { background: #eff6ff; }
+  .footer { margin-top: 16px; font-size: 9px; color: #94a3b8; text-align: right; }
+</style></head><body>
+  <h1>${title}</h1>
+  <p class="meta">Generated: ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} &nbsp;|&nbsp; Digital Culture Pledge System</p>
+  <table>
+    <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rows.length > 0 ? rows.map(cells => `<tr>${cells.map(c => `<td>${String(c ?? '—').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${headers.length}" style="text-align:center;padding:20px;color:#94a3b8;">No data found</td></tr>`}</tbody>
+  </table>
+  <p class="footer">Total records: ${rows.length}</p>
+</body></html>`;
+
+// GET /api/admin/global-reports/participants/pdf
+const getParticipantsPDF = async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT u.name, u.email, u.designation,
+                   ca.name AS company_name,
+                   prog.title AS program_title,
+                   COUNT(DISTINCT pl.id) AS total_pledges,
+                   COUNT(DISTINCT CASE WHEN si.completed_at IS NOT NULL THEN si.id END) AS surveys_done,
+                   u.created_at
+            FROM users u
+            LEFT JOIN pledges pl ON pl.user_id = u.id
+            LEFT JOIN programs prog ON prog.id = pl.program_id
+            LEFT JOIN users ca ON ca.id = prog.company_id
+            LEFT JOIN survey_instances si ON si.pledge_id = pl.id
+            WHERE u.role = 'participant'
+            GROUP BY u.id, ca.name, prog.title
+            ORDER BY u.name
+        `);
+
+        const headers = ['Name', 'Email', 'Designation', 'Company', 'Program', 'Pledges', 'Surveys Done', 'Joined'];
+        const tableRows = rows.map(r => [
+            r.name, r.email, r.designation || '—',
+            r.company_name || '—', r.program_title || '—',
+            r.total_pledges, r.surveys_done,
+            r.created_at ? new Date(r.created_at).toLocaleDateString('en-GB') : '—'
+        ]);
+
+        const buf = await buildPdfBuffer(tableHtml('Global Participant Report', headers, tableRows));
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename="participants-report.pdf"');
+        return res.send(buf);
+    } catch (error) {
+        console.error('getParticipantsPDF error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to generate PDF.' });
+    }
+};
+
+// GET /api/admin/global-reports/pledges/pdf
+const getPledgesPDF = async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT u.name, u.email,
+                   ca.name AS company_name,
+                   prog.title AS program_title,
+                   pl.north_star, pl.submission_date,
+                   COUNT(DISTINCT pp.id) AS practices_chosen
+            FROM pledges pl
+            JOIN users u ON u.id = pl.user_id
+            LEFT JOIN programs prog ON prog.id = pl.program_id
+            LEFT JOIN users ca ON ca.id = prog.company_id
+            LEFT JOIN pledge_practices pp ON pp.pledge_id = pl.id
+            GROUP BY pl.id, ca.name
+            ORDER BY u.name
+        `);
+
+        const headers = ['Participant', 'Email', 'Company', 'Program', 'North Star', 'Practices Chosen', 'Submission Date'];
+        const tableRows = rows.map(r => [
+            r.name, r.email, r.company_name || '—', r.program_title || '—',
+            r.north_star || '—', r.practices_chosen,
+            r.submission_date ? new Date(r.submission_date).toLocaleDateString('en-GB') : '—'
+        ]);
+
+        const buf = await buildPdfBuffer(tableHtml('Global Pledge Report', headers, tableRows));
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename="pledges-report.pdf"');
+        return res.send(buf);
+    } catch (error) {
+        console.error('getPledgesPDF error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to generate PDF.' });
+    }
+};
+
+// GET /api/admin/global-reports/surveys/pdf
+const getSurveysPDF = async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT u.name, u.email,
+                   ca.name AS company_name,
+                   prog.title AS program_title,
+                   COUNT(DISTINCT si.id) AS total_surveys,
+                   COUNT(DISTINCT CASE WHEN si.completed_at IS NOT NULL THEN si.id END) AS completed_surveys,
+                   CASE
+                     WHEN COUNT(DISTINCT si.id) = 0 THEN 0
+                     ELSE ROUND(100 * COUNT(DISTINCT CASE WHEN si.completed_at IS NOT NULL THEN si.id END) / COUNT(DISTINCT si.id))
+                   END AS completion_pct
+            FROM pledges pl
+            JOIN users u ON u.id = pl.user_id
+            LEFT JOIN programs prog ON prog.id = pl.program_id
+            LEFT JOIN users ca ON ca.id = prog.company_id
+            LEFT JOIN survey_instances si ON si.pledge_id = pl.id
+            GROUP BY pl.id, ca.name
+            ORDER BY u.name
+        `);
+
+        const headers = ['Participant', 'Email', 'Company', 'Program', 'Total Surveys', 'Completed', 'Completion %'];
+        const tableRows = rows.map(r => [
+            r.name, r.email, r.company_name || '—', r.program_title || '—',
+            r.total_surveys, r.completed_surveys, r.completion_pct + '%'
+        ]);
+
+        const buf = await buildPdfBuffer(tableHtml('Global Survey Report', headers, tableRows));
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename="surveys-report.pdf"');
+        return res.send(buf);
+    } catch (error) {
+        console.error('getSurveysPDF error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to generate PDF.' });
+    }
+};
+
+
 module.exports = {
     getDashboardStats,
     createProgramWithPractices,
@@ -467,4 +866,14 @@ module.exports = {
     getCompanyAdmins,
     createCompanyAdmin,
     getSuperAdminStats,
+    updateCompanyAdmin,
+    deleteCompanyAdmin,
+    getCompanyStatus,
+    getGlobalStats,
+    getParticipantsCSV,
+    getPledgesCSV,
+    getSurveysCSV,
+    getParticipantsPDF,
+    getPledgesPDF,
+    getSurveysPDF,
 };

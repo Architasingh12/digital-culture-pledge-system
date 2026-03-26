@@ -84,14 +84,6 @@ const SuperAdminDashboard = () => {
                 />
             </div>
 
-            {/* Info banner */}
-            <div className="rounded-2xl border p-5 sm:p-6" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
-                <h2 className="font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>System Management</h2>
-                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    Use the sidebar to manage <strong>Companies</strong>, assign <strong>Company Admins</strong>,
-                    and view system-wide <strong>Analytics</strong>.
-                </p>
-            </div>
         </div>
     );
 };

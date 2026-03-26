@@ -31,7 +31,7 @@ const AdminPrograms = () => {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [companies, setCompanies] = useState([]);
-    const [newProgram, setNewProgram] = useState({ title: '', description: '', start_date: '', end_date: '', company_id: '' });
+    const [newProgram, setNewProgram] = useState({ title: '', description: '', start_date: '', company_id: '' });
 
     const fetchPrograms = async () => {
         setLoading(true);
@@ -136,9 +136,7 @@ const AdminPrograms = () => {
                                         )}
                                         <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/10 text-blue-700 dark:text-blue-400 text-xs font-bold rounded-lg border border-blue-200 dark:border-blue-800/50 uppercase tracking-widest shadow-sm">
                                             <Calendar className="w-3.5 h-3.5" />
-                                            {p.start_date ? new Date(p.start_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'No Start Date'}
-                                            <span className="opacity-50 mx-1">→</span>
-                                            {p.end_date ? new Date(p.end_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Present'}
+                                            {p.start_date ? new Date(p.start_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Continuous'}
                                         </div>
                                     </div>
                                 </motion.div>
@@ -206,27 +204,15 @@ const AdminPrograms = () => {
                                         placeholder="Program goals and targets..."
                                     />
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-[11px] font-black uppercase tracking-widest mb-2" style={{ color: 'var(--text-secondary)' }}>Start Date</label>
-                                        <input
-                                            type="date"
-                                            className="w-full rounded-xl p-3.5 text-sm font-bold focus:ring-2 focus:ring-blue-500 border outline-none transition-shadow bg-transparent shadow-sm"
-                                            style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
-                                            value={newProgram.start_date}
-                                            onChange={e => setNewProgram({ ...newProgram, start_date: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[11px] font-black uppercase tracking-widest mb-2" style={{ color: 'var(--text-secondary)' }}>End Date</label>
-                                        <input
-                                            type="date"
-                                            className="w-full rounded-xl p-3.5 text-sm font-bold focus:ring-2 focus:ring-blue-500 border outline-none transition-shadow bg-transparent shadow-sm"
-                                            style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
-                                            value={newProgram.end_date}
-                                            onChange={e => setNewProgram({ ...newProgram, end_date: e.target.value })}
-                                        />
-                                    </div>
+                                <div>
+                                    <label className="block text-[11px] font-black uppercase tracking-widest mb-2" style={{ color: 'var(--text-secondary)' }}>Start Date</label>
+                                    <input
+                                        type="date"
+                                        className="w-full rounded-xl p-3.5 text-sm font-bold focus:ring-2 focus:ring-blue-500 border outline-none transition-shadow bg-transparent shadow-sm"
+                                        style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
+                                        value={newProgram.start_date}
+                                        onChange={e => setNewProgram({ ...newProgram, start_date: e.target.value })}
+                                    />
                                 </div>
                                 <div className="flex justify-end gap-3 pt-6 mt-2 border-t" style={{ borderColor: 'var(--border-color)' }}>
                                     <button
